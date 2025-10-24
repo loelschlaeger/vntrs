@@ -1,0 +1,85 @@
+---
+output: github_document
+---
+
+<!-- README.md is generated from README.Rmd. Please edit that file -->
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>",
+  fig.path = "man/figures/README-",
+  out.width = "100%"
+)
+```
+
+# vntrs <a href="https://loelschlaeger.de/vntrs/"><img src="man/figures/logo.png" align="right" height="139" alt="vntrs website" /></a>
+
+<!-- badges: start -->
+[![R-CMD-check](https://github.com/loelschlaeger/vntrs/actions/workflows/R-CMD-check.yaml/badge.svg)](https://github.com/loelschlaeger/vntrs/actions/workflows/R-CMD-check.yaml)
+[![Codecov test coverage](https://codecov.io/gh/loelschlaeger/vntrs/graph/badge.svg)](https://app.codecov.io/gh/loelschlaeger/vntrs)
+[![CRAN status](https://www.r-pkg.org/badges/version/vntrs)](https://CRAN.R-project.org/package=vntrs)
+[![CRAN downloads](https://cranlogs.r-pkg.org/badges/grand-total/vntrs)](https://CRAN.R-project.org/package=vntrs)
+<!-- badges: end -->
+
+This R package provides an algorithm for nonlinear global optimization based on the variable neighbourhood trust region search (VNTRS) algorithm proposed by Bierlaire et al. (2009) "A Heuristic for Nonlinear Global Optimization". The algorithm combines variable neighbourhood exploration with a trust-region framework to efficiently search the solution space. It can terminate a local search early if the iterates are converging toward a previously visited local optimum or if further improvement within the current region is unlikely. In addition to global optimization, the algorithm can also be applied to identify multiple local optima.
+
+## Installation
+
+You can install the released package version from [CRAN](https://CRAN.R-project.org) with:
+
+``` r
+install.packages("vntrs")
+```
+
+## How to get started
+
+1. Specify a function `f` that computes value, gradient, and Hessian of the objective to be optimized and returns them as a named list with elements `value`, `gradient`, and `hessian`. Note that `gradient` and/or `hessian` can be unspecified, in which case finite differences are used.
+
+2. Call `vntrs::vntrs(f = f, npar = npar, minimize = minimize)`, where
+
+- `npar` is the number of parameters of `f` and
+
+- `minimize` determines whether `f` should be minimized (`minimize = TRUE`, the default) or maximized (`minimize = FALSE`).
+
+Optionally, the algorithm can be tuned by setting dedicated control arguments (for example `init_runs` or `neighbors`, see `help("vntrs")` for details).
+
+## Example
+
+The example below minimizes the well-known [six-hump camel function](https://www.sfu.ca/~ssurjano/camel6.html), which has two global minima.
+
+```{r demo}
+set.seed(1)
+
+camel <- function(x) {
+  x1 <- x[1]
+  x2 <- x[2]
+  value <- (4 - 2.1 * x1^2 + x1^4 / 3) * x1^2 + x1 * x2 + (-4 + 4 * x2^2) * x2^2
+  gradient <- c(
+    8 * x1 - 8.4 * x1^3 + 2 * x1^5 + x2,
+    x1 - 8 * x2 + 16 * x2^3
+  )
+  hessian <- matrix(
+    c(
+      8 - 25.2 * x1^2 + 10 * x1^4, 1,
+      1, -8 + 48 * x2^2
+    ),
+    nrow = 2,
+    byrow = TRUE
+  )
+  list(value = value, gradient = gradient, hessian = hessian)
+}
+
+vntrs::vntrs(
+  f = camel,           # objective that supplies value, gradient, Hessian
+  npar = 2,            # two variables (x1 and x2)
+  init_runs = 5,       # start from 5 random points
+  neighborhoods = 5,   # try 5 neighbourhood radii per trust region
+  neighbors = 5,       # evaluate 5 trial points per neighbourhood
+  lower = c(-3, -2),   # lower search bounds for x1 and x2
+  upper = c(3, 2),     # upper search bounds for x1 and x2
+  collect_all = TRUE,  # also look for local optima
+  quiet = FALSE        # show status messages
+)
+```
+

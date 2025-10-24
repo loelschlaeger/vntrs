@@ -1,0 +1,12 @@
+template:
+  bootstrap: 5
+
+url: https://loelschlaeger.de/vntrs/
+
+home:
+  title: Variable Neighborhood Trust Region Search
+
+authors:
+  Lennart Oelschläger:
+    href: https://loelschlaeger.de
+

@@ -1,0 +1,34 @@
+Package: vntrs
+Title: Variable Neighborhood Trust Region Search
+Version: 0.2.0
+Authors@R:
+    person(given = "Lennart",
+           family = "Oelschl\U00E4ger",
+           role = c("aut", "cre"),
+           email = "oelschlaeger.lennart@gmail.com",
+           comment = c(ORCID = "0000-0001-5421-9313"))
+Description: An algorithm for nonlinear global optimization based on the 
+    variable neighbourhood trust region search (VNTRS) algorithm proposed by 
+    Bierlaire et al. (2009) "A Heuristic for Nonlinear Global Optimization" 
+    <doi:10.1287/ijoc.1090.0343>. The algorithm combines variable neighbourhood 
+    exploration with a trust-region framework to efficiently search the solution 
+    space. It can terminate a local search early if the iterates are converging 
+    toward a previously visited local optimum or if further improvement within 
+    the current region is unlikely. In addition to global optimization, the 
+    algorithm can also be applied to identify multiple local optima.
+URL: https://loelschlaeger.de/vntrs/, https://github.com/loelschlaeger/vntrs/
+BugReports: https://github.com/loelschlaeger/vntrs/issues
+License: GPL-3
+Encoding: UTF-8
+Roxygen: list(markdown = TRUE)
+RoxygenNote: 7.3.3
+Imports:
+    checkmate,
+    oeli (>= 0.7.5),
+    Rcpp
+LinkingTo:
+    Rcpp,
+    RcppArmadillo
+Suggests:
+    testthat (>= 3.0.0)
+Config/testthat/edition: 3
