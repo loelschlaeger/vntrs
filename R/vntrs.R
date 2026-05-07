@@ -1,72 +1,72 @@
 #' Variable neighborhood trust region search
 #'
 #' @description
-#' This function performs variable neighborhood trust region search.
+#' Run the variable neighborhood trust region search algorithm.
 #'
 #' @references
 #' Bierlaire et al. (2009) "A Heuristic for Nonlinear Global Optimization"
 #' \doi{10.1287/ijoc.1090.0343}.
 #'
 #' @param f \[`function`\]\cr
-#' A function, returning either
+#' A function that accepts a \code{numeric} parameter vector and returns either
 #'
-#' - a \code{numeric} objective value or
-#' - a \code{list} with element \code{value} and optional \code{gradient} and
-#'   \code{hessian} components
+#' - a \code{numeric} objective value, or
+#' - a \code{list} with \code{value} and optional \code{gradient} and
+#'   \code{hessian} components.
 #'
-#' for a \code{numeric} parameter vector. Missing derivatives are approximated
-#' by finite differences.
+#' Missing derivatives are approximated by finite differences.
 #'
 #' @param npar \[`integer(1)`\]\cr
 #' The number of parameters of \code{f}.
 #'
 #' @param minimize \[`logical(1)`\]\cr
-#' Minimize \code{f}?
+#' If \code{TRUE}, minimize \code{f}; otherwise, maximize it.
 #'
 #' @param init_runs \[`integer(1)`\]\cr
 #' Number of random starting points for the initialization stage.
 #'
 #' @param init_min,init_max \[`numeric(1)`\]\cr
-#' Lower and upper bound for the uniform sampling range during initialization.
+#' Lower and upper bounds for the uniform initialization range.
 #'
 #' @param init_iterlim \[`integer(1)`\]\cr
-#' Maximum iterations of the trust-region method during initialization.
+#' Maximum trust-region iterations during initialization.
 #'
 #' @param neighborhoods \[`integer(1)`\]\cr
-#' Number of neighborhood expansions to perform.
+#' Number of neighborhood expansions to try.
 #'
 #' @param neighbors \[`integer(1)`\]\cr
-#' Number of neighboring points drawn in each neighborhood.
+#' Number of trial points sampled in each neighborhood.
 #'
 #' @param beta \[`numeric(1)`\]\cr
-#' Non-negative scaling factor that controls the neighborhood expansion.
+#' Non-negative scaling factor for neighborhood expansion.
 #'
 #' @param iterlim \[`integer(1)`\]\cr
-#' Maximum iterations of the trust-region method during the main search.
+#' Maximum trust-region iterations during the main search.
 #'
 #' @param tolerance \[`numeric(1)`\]\cr
-#' Minimum distance between optima candidates to consider them distinct.
+#' Minimum Euclidean distance for two optima to be treated as distinct.
 #'
 #' @param inferior_tolerance \[`numeric(1)`\]\cr
-#' Maximum allowed difference from the best known objective value when deciding
-#' if a local optimum should be discarded early.
+#' Maximum objective-value gap from the best known solution before a local
+#' optimum is discarded early.
 #'
-#' @param time_limit \[`integer(1)` | `NULL`\]\cr
-#' Optional time limit (in seconds) for the search. If reached, the search stops
-#' early with a warning.
+#' @param time_limit \[`numeric(1)` | `NULL`\]\cr
+#' Optional time limit in seconds. If reached, the search stops early with a
+#' warning.
 #'
 #' @param cores \[`integer(1)`\]\cr
 #' Number of CPU cores used for parallel evaluation.
 #'
-#' @param lower,upper \[`numeric(npar)`  | `NULL`\]\cr
-#' Optional lower and upper parameter bounds.
+#' @param lower,upper \[`numeric(npar)` | `NULL`\]\cr
+#' Optional lower and upper parameter bounds. Use \code{NULL} for unbounded
+#' dimensions.
 #'
 #' @param collect_all \[`logical(1)`\]\cr
-#' Keep every converged local optimum even if it is inferior to the best known
-#' solution and disable early stopping?
+#' If \code{TRUE}, keep all converged local optima and disable early stopping
+#' for optima that are inferior to the best known solution.
 #'
 #' @param quiet \[`logical(1)`\]\cr
-#' Suppress messages?
+#' If \code{TRUE}, suppress progress messages.
 #'
 #' @return
 #' A \code{data.frame} summarizing the identified optima or \code{NULL} if none

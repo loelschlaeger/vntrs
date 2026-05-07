@@ -53,11 +53,87 @@ call_trust_region <- function(
     minimize = TRUE, tol = 1e-6, eta = 0.1,
     lower = rep(-Inf, length(parinit)), upper = rep(Inf, length(parinit))
 ) {
-  .Call(
-    `_vntrs_trust_region_cpp`, objfun, as.numeric(parinit), rinit, rmax,
-    as.integer(iterlim), minimize, tol, eta, as.numeric(lower),
-    as.numeric(upper)
+  vntrs:::trust_region_cpp(
+    objfun = objfun,
+    parinit = as.numeric(parinit),
+    rinit = rinit,
+    rmax = rmax,
+    iterlim = as.integer(iterlim),
+    minimize = minimize,
+    tol = tol,
+    eta = eta,
+    lower = as.numeric(lower),
+    upper = as.numeric(upper)
   )
+}
+
+call_vntrs_cpp <- function(
+    f,
+    npar = 1,
+    minimize = TRUE,
+    init_runs = 1,
+    init_min = -1,
+    init_max = 1,
+    init_iterlim = 5,
+    neighborhoods = 1,
+    neighbors = 1,
+    beta = 0.05,
+    iterlim = 5,
+    tolerance = 1e-6,
+    inferior_tolerance = 1e-6,
+    has_time_limit = FALSE,
+    time_limit = 0,
+    cores = 1,
+    lower = rep(-Inf, npar),
+    upper = rep(Inf, npar),
+    quiet = TRUE,
+    collect_all_optima = FALSE
+) {
+  vntrs:::vntrs_cpp(
+    f = f,
+    npar = as.integer(npar),
+    minimize = minimize,
+    init_runs = as.integer(init_runs),
+    init_min = init_min,
+    init_max = init_max,
+    init_iterlim = as.integer(init_iterlim),
+    neighborhoods = as.integer(neighborhoods),
+    neighbors = as.integer(neighbors),
+    beta = beta,
+    iterlim = as.integer(iterlim),
+    tolerance = tolerance,
+    inferior_tolerance = inferior_tolerance,
+    has_time_limit = has_time_limit,
+    time_limit = time_limit,
+    cores = as.integer(cores),
+    lower = as.numeric(lower),
+    upper = as.numeric(upper),
+    quiet = quiet,
+    collect_all_optima = collect_all_optima
+  )
+}
+
+valid_vntrs_args <- function() {
+  list(
+    f = quadratic_function(matrix(2)),
+    npar = 1,
+    init_runs = 1,
+    init_min = 0,
+    init_max = 0,
+    init_iterlim = 1,
+    neighborhoods = 1,
+    neighbors = 1,
+    beta = 0,
+    iterlim = 1,
+    tolerance = 1e-6,
+    inferior_tolerance = 1e-6,
+    cores = 1,
+    quiet = TRUE
+  )
+}
+
+expect_vntrs_error <- function(...) {
+  expect_error(do.call(vntrs, utils::modifyList(valid_vntrs_args(), list(...))))
 }
 
 test_that("vntrs respects parameter bounds", {
@@ -245,5 +321,130 @@ test_that("trust_region respects bound constraints", {
   expect_true(res$converged)
   expect_equal(res$argument[1], lower[1], tolerance = 1e-8)
   expect_equal(res$argument[2], upper[2], tolerance = 1e-8)
+})
+
+test_that("vntrs validates public arguments", {
+  expect_vntrs_error(f = 1)
+  expect_vntrs_error(npar = 0)
+  expect_vntrs_error(minimize = NA)
+  expect_vntrs_error(init_runs = 0)
+  expect_vntrs_error(init_min = "low")
+  expect_vntrs_error(init_max = -1)
+  expect_vntrs_error(init_iterlim = 0)
+  expect_vntrs_error(neighborhoods = 0)
+  expect_vntrs_error(neighbors = 0)
+  expect_vntrs_error(beta = -1)
+  expect_vntrs_error(iterlim = 0)
+  expect_vntrs_error(tolerance = -1)
+  expect_vntrs_error(inferior_tolerance = -1)
+  expect_vntrs_error(time_limit = -1)
+  expect_vntrs_error(cores = 0)
+  expect_vntrs_error(lower = c(0, 0))
+  expect_vntrs_error(lower = NA_real_)
+  expect_vntrs_error(upper = c(0, 0))
+  expect_vntrs_error(upper = NA_real_)
+  expect_vntrs_error(lower = 1, upper = 0)
+  expect_vntrs_error(collect_all = NA)
+  expect_vntrs_error(quiet = NA)
+})
+
+test_that("objective return values are validated", {
+  expect_vntrs_error(f = function(x) NULL)
+  expect_vntrs_error(f = function(x) list(gradient = 0, hessian = matrix(1)))
+  expect_vntrs_error(f = function(x) c(1, 2))
+  expect_vntrs_error(f = function(x) Inf)
+  expect_vntrs_error(
+    f = function(x) list(value = 1, gradient = "bad", hessian = matrix(1))
+  )
+  expect_vntrs_error(
+    f = function(x) {
+      list(value = 1, gradient = numeric(), hessian = matrix(1))
+    }
+  )
+  expect_vntrs_error(
+    f = function(x) {
+      list(value = 1, gradient = NA_real_, hessian = matrix(1))
+    }
+  )
+  expect_vntrs_error(
+    f = function(x) list(value = 1, gradient = 0, hessian = 1)
+  )
+  expect_vntrs_error(
+    f = function(x) {
+      list(value = 1, gradient = 0, hessian = matrix(1, 2, 2))
+    }
+  )
+  expect_vntrs_error(
+    f = function(x) {
+      list(value = 1, gradient = 0, hessian = matrix(NA_real_))
+    }
+  )
+})
+
+test_that("objectives may omit derivatives", {
+  numeric_only <- function(x) sum(x^2)
+  value_only <- function(x) list(value = sum(x^2))
+  gradient_only <- function(x) list(value = sum(x^2), gradient = 2 * x)
+  hessian_only <- function(x) {
+    list(value = sum(x^2), hessian = matrix(2, nrow = 1, ncol = 1))
+  }
+
+  objectives <- list(
+    numeric_only,
+    value_only,
+    gradient_only,
+    hessian_only
+  )
+  for (objective in objectives) {
+    res <- call_trust_region(
+      objfun = objective,
+      parinit = 1,
+      rinit = 1,
+      rmax = 2,
+      iterlim = 50
+    )
+    expect_true(res$converged)
+    expect_equal(res$value, 0, tolerance = 1e-5)
+  }
+})
+
+test_that("generated Rcpp wrappers call compiled routines", {
+  set.seed(11)
+  res <- call_vntrs_cpp(
+    f = quadratic_function(matrix(2)),
+    npar = 1,
+    init_min = 0,
+    init_max = 0,
+    iterlim = 10
+  )
+  expect_s3_class(res, "data.frame")
+  expect_equal(colnames(res), c("p1", "value", "global"))
+  expect_true(res$global[1])
+})
+
+test_that("trust_region validates bounds and supports maximization", {
+  f <- quadratic_function(matrix(2))
+  expect_error(call_trust_region(f, parinit = 1, lower = c(0, 0)))
+  expect_error(call_trust_region(f, parinit = 1, lower = 1, upper = 0))
+
+  concave <- quadratic_function(matrix(-2))
+  res <- call_trust_region(
+    objfun = concave,
+    parinit = 1,
+    minimize = FALSE
+  )
+  expect_true(res$converged)
+  expect_equal(res$value, 0, tolerance = 1e-5)
+})
+
+test_that("finite differences handle non-finite starting scales", {
+  constant <- function(x) 0
+  res <- call_trust_region(
+    objfun = constant,
+    parinit = Inf,
+    iterlim = 1
+  )
+  expect_true(res$converged)
+  expect_equal(res$value, 0)
 })
 

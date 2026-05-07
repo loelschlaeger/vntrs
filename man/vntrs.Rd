@@ -28,73 +28,73 @@ vntrs(
 }
 \arguments{
 \item{f}{[\code{function}]\cr
-A function, returning either
+A function that accepts a \code{numeric} parameter vector and returns either
 \itemize{
-\item a \code{numeric} objective value or
-\item a \code{list} with element \code{value} and optional \code{gradient} and
-\code{hessian} components
+\item a \code{numeric} objective value, or
+\item a \code{list} with \code{value} and optional \code{gradient} and
+\code{hessian} components.
 }
 
-for a \code{numeric} parameter vector. Missing derivatives are approximated
-by finite differences.}
+Missing derivatives are approximated by finite differences.}
 
 \item{npar}{[\code{integer(1)}]\cr
 The number of parameters of \code{f}.}
 
 \item{minimize}{[\code{logical(1)}]\cr
-Minimize \code{f}?}
+If \code{TRUE}, minimize \code{f}; otherwise, maximize it.}
 
 \item{init_runs}{[\code{integer(1)}]\cr
 Number of random starting points for the initialization stage.}
 
 \item{init_min, init_max}{[\code{numeric(1)}]\cr
-Lower and upper bound for the uniform sampling range during initialization.}
+Lower and upper bounds for the uniform initialization range.}
 
 \item{init_iterlim}{[\code{integer(1)}]\cr
-Maximum iterations of the trust-region method during initialization.}
+Maximum trust-region iterations during initialization.}
 
 \item{neighborhoods}{[\code{integer(1)}]\cr
-Number of neighborhood expansions to perform.}
+Number of neighborhood expansions to try.}
 
 \item{neighbors}{[\code{integer(1)}]\cr
-Number of neighboring points drawn in each neighborhood.}
+Number of trial points sampled in each neighborhood.}
 
 \item{beta}{[\code{numeric(1)}]\cr
-Non-negative scaling factor that controls the neighborhood expansion.}
+Non-negative scaling factor for neighborhood expansion.}
 
 \item{iterlim}{[\code{integer(1)}]\cr
-Maximum iterations of the trust-region method during the main search.}
+Maximum trust-region iterations during the main search.}
 
 \item{tolerance}{[\code{numeric(1)}]\cr
-Minimum distance between optima candidates to consider them distinct.}
+Minimum Euclidean distance for two optima to be treated as distinct.}
 
 \item{inferior_tolerance}{[\code{numeric(1)}]\cr
-Maximum allowed difference from the best known objective value when deciding
-if a local optimum should be discarded early.}
+Maximum objective-value gap from the best known solution before a local
+optimum is discarded early.}
 
-\item{time_limit}{[\code{integer(1)} | \code{NULL}]\cr
-Optional time limit (in seconds) for the search. If reached, the search stops
-early with a warning.}
+\item{time_limit}{[\code{numeric(1)} | \code{NULL}]\cr
+Optional time limit in seconds. If reached, the search stops early with a
+warning.}
 
 \item{cores}{[\code{integer(1)}]\cr
 Number of CPU cores used for parallel evaluation.}
 
-\item{lower, upper}{[\code{numeric(npar)}  | \code{NULL}]\cr
-Optional lower and upper parameter bounds.}
+\item{lower, upper}{[\code{numeric(npar)} | \code{NULL}]\cr
+Optional lower and upper parameter bounds. Use \code{NULL} for unbounded
+dimensions.}
 
 \item{collect_all}{[\code{logical(1)}]\cr
-Keep every converged local optimum even if it is inferior to the best known
-solution and disable early stopping?}
+If \code{TRUE}, keep all converged local optima and disable early stopping
+for optima that are inferior to the best known solution.}
 
 \item{quiet}{[\code{logical(1)}]\cr
-Suppress messages?}
+If \code{TRUE}, suppress progress messages.}
 }
 \value{
 A \code{data.frame} summarizing the identified optima or \code{NULL} if none
 could be determined.
 }
 \description{
-This function performs variable neighborhood trust region search.
+Run the variable neighborhood trust region search algorithm.
 }
 \examples{
 rosenbrock <- function(x) 100 * (x[2] - x[1]^2)^2 + (1 - x[1])^2

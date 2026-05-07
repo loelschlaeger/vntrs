@@ -1,10 +1,17 @@
+# vntrs 0.2.1
+
+* Improved documentation.
+
+* Removed renv.
+
 # vntrs 0.2.0
 
-* Added optional bound constraints to the trust-region optimizer and made them available through the `lower` and `upper` arguments.
+* Added optional bound constraints to the trust-region optimizer.
+  These are available through the `lower` and `upper` arguments.
   
 * Improved documentation.
 
-* Implemented algorithm in Rcpp for speed increase.
+* Implemented the algorithm in Rcpp for faster execution.
 
 # vntrs 0.1.1
 

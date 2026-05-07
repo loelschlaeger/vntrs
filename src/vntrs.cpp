@@ -705,16 +705,6 @@ SEXP vntrs_cpp(
   if (!init_success || !x_best.is_finite()) {
     warning("No optima found.");
     return R_NilValue;
-    if (storage.empty()) {
-      warning("No optima found.");
-      return R_NilValue;
-    }
-    arma::vec fallback = storage.best_argument(minimize);
-    if (!fallback.is_finite()) {
-      warning("No optima found.");
-      return R_NilValue;
-    }
-    x_best = fallback;
   }
 
   if (!quiet) {
