@@ -17,8 +17,6 @@ Useful links:
 
 - <https://loelschlaeger.de/vntrs/>
 
-- <https://github.com/loelschlaeger/vntrs/>
-
 - Report bugs at <https://github.com/loelschlaeger/vntrs/issues>
 
 ## Author
