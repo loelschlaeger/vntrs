@@ -14,16 +14,15 @@ status](https://www.r-pkg.org/badges/version/vntrs)](https://CRAN.R-project.org/
 downloads](https://cranlogs.r-pkg.org/badges/grand-total/vntrs)](https://CRAN.R-project.org/package=vntrs)
 <!-- badges: end -->
 
-This R package provides an algorithm for nonlinear global optimization
-based on the variable neighbourhood trust region search (VNTRS)
-algorithm proposed by Bierlaire et al. (2009) “A Heuristic for Nonlinear
-Global Optimization”. The algorithm combines variable neighbourhood
-exploration with a trust-region framework to efficiently search the
-solution space. It can terminate a local search early if the iterates
-are converging toward a previously visited local optimum or if further
-improvement within the current region is unlikely. In addition to global
-optimization, the algorithm can also be applied to identify multiple
-local optima.
+This R package implements the variable neighborhood trust region search
+(VNTRS) algorithm for nonlinear global optimization, following Bierlaire
+et al. (2009) “A Heuristic for Nonlinear Global Optimization”. The
+method combines neighborhood exploration with a trust-region framework
+to search the solution space efficiently. It can terminate a local
+search early when the iterates converge toward a previously visited
+local optimum or when further improvement within the current region is
+unlikely. The algorithm can also be used to identify multiple local
+optima.
 
 ## Installation
 
@@ -36,11 +35,10 @@ install.packages("vntrs")
 
 ## How to get started
 
-1.  Specify a function `f` that computes value, gradient, and Hessian of
-    the objective to be optimized and returns them as a named list with
-    elements `value`, `gradient`, and `hessian`. Note that `gradient`
-    and/or `hessian` can be unspecified, in which case finite
-    differences are used.
+1.  Specify a function `f` that computes the objective value. It may
+    also return the gradient and Hessian. Return either a numeric value
+    or a named list with `value`, `gradient`, and `hessian` components.
+    Omitted derivatives are approximated by finite differences.
 
 2.  Call `vntrs::vntrs(f = f, npar = npar, minimize = minimize)`, where
 
@@ -82,11 +80,11 @@ camel <- function(x) {
 }
 
 vntrs::vntrs(
-  f = camel,           # objective that supplies value, gradient, Hessian
+  f = camel,           # objective supplies value, gradient, Hessian
   npar = 2,            # two variables (x1 and x2)
   init_runs = 5,       # start from 5 random points
-  neighborhoods = 5,   # try 5 neighbourhood radii per trust region
-  neighbors = 5,       # evaluate 5 trial points per neighbourhood
+  neighborhoods = 5,   # try 5 neighborhood radii per trust region
+  neighbors = 5,       # evaluate 5 trial points per neighborhood
   lower = c(-3, -2),   # lower search bounds for x1 and x2
   upper = c(3, 2),     # upper search bounds for x1 and x2
   collect_all = TRUE,  # also look for local optima
