@@ -32,13 +32,20 @@ static arma::vec projected_gradient(const arma::vec& gradient,
   return projected;
 }
 
-static double relative_gradient_measure(const arma::vec& gradient,
-                                        const arma::vec& x,
-                                        const arma::vec& lower,
-                                        const arma::vec& upper) {
+static double scaled_gradient_measure(const arma::vec& gradient,
+                                      const arma::vec& x,
+                                      double value,
+                                      const arma::vec& lower,
+                                      const arma::vec& upper) {
   arma::vec projected = projected_gradient(gradient, x, lower, upper);
   if (!projected.is_finite()) return NA_REAL;
-  return arma::norm(projected, "inf");
+  double measure = 0.0;
+  for (arma::uword i = 0; i < x.n_elem; ++i) {
+    double parameter_scale = std::isfinite(x(i))
+      ? std::max(1.0, std::fabs(x(i))) : 1.0;
+    measure = std::max(measure, std::fabs(projected(i)) * parameter_scale);
+  }
+  return measure / std::max(1.0, std::fabs(value));
 }
 
 static void apply_bounds(arma::vec& x, const arma::vec& lower,
@@ -323,13 +330,13 @@ List trust_region_cpp(
   bool converged = false;
 
   while (iter < iterlim) {
-    double relative_gradient = relative_gradient_measure(
-      gradient, x, lower_vec, upper_vec
+    double gradient_measure = scaled_gradient_measure(
+      gradient, x, value, lower_vec, upper_vec
     );
-    if (!std::isfinite(relative_gradient)) {
+    if (!std::isfinite(gradient_measure)) {
       break;
     }
-    if (relative_gradient <= tol) {
+    if (gradient_measure <= tol) {
       converged = true;
       break;
     }
@@ -452,13 +459,12 @@ List trust_region_cpp(
     }
   }
 
-  double relative_gradient = relative_gradient_measure(
-    gradient, x, lower_vec, upper_vec
+  double gradient_measure = scaled_gradient_measure(
+    gradient, x, value, lower_vec, upper_vec
   );
   converged = converged || (
-    std::isfinite(relative_gradient) && relative_gradient <= tol
+    std::isfinite(gradient_measure) && gradient_measure <= tol
   );
-
   if (converged && exact_hessian && !second_order_satisfied(
         supplied_curvature, gradient, x, lower_vec, upper_vec)) {
     converged = false;
@@ -468,8 +474,8 @@ List trust_region_cpp(
     std::max(tol, std::numeric_limits<double>::epsilon()), 0.25
   );
   if (components.gradient_supplied && !exact_hessian &&
-      std::isfinite(relative_gradient) &&
-      (converged || relative_gradient <= refinement_trigger)) {
+      std::isfinite(gradient_measure) &&
+      (converged || gradient_measure <= refinement_trigger)) {
     bool curvature_ok = true;
     for (int refinement = 0; refinement < 5; ++refinement) {
       arma::mat refinement_curvature = direction *
@@ -483,7 +489,7 @@ List trust_region_cpp(
         break;
       }
       model = positive_definite_model(refinement_curvature);
-      if (relative_gradient <= tol) {
+      if (gradient_measure <= tol) {
         break;
       }
 
@@ -510,14 +516,14 @@ List trust_region_cpp(
       );
       if (!std::isfinite(refined.value)) break;
       arma::vec refined_gradient = direction * refined.gradient;
-      double refined_measure = relative_gradient_measure(
-        refined_gradient, candidate, lower_vec, upper_vec
+      double refined_measure = scaled_gradient_measure(
+        refined_gradient, candidate, refined.value, lower_vec, upper_vec
       );
       double objective_change = direction * (value - refined.value);
       double value_slack = 10.0 * std::numeric_limits<double>::epsilon() *
         std::max(1.0, std::fabs(value));
       if (!std::isfinite(refined_measure) ||
-          refined_measure >= relative_gradient ||
+          refined_measure >= gradient_measure ||
           objective_change < -value_slack) {
         break;
       }
@@ -525,9 +531,9 @@ List trust_region_cpp(
       value = refined.value;
       gradient_original = refined.gradient;
       gradient = refined_gradient;
-      relative_gradient = refined_measure;
+      gradient_measure = refined_measure;
     }
-    converged = curvature_ok && relative_gradient <= tol;
+    converged = curvature_ok && gradient_measure <= tol;
   }
 
   if (converged && !components.gradient_supplied && !exact_hessian) {
@@ -547,7 +553,7 @@ List trust_region_cpp(
     Named("converged") = converged,
     Named("iterations") = iter,
     Named("gradient") = wrap(gradient_original),
-    Named("relative_gradient") = relative_gradient,
+    Named("scaled_gradient") = gradient_measure,
     Named("model") = wrap(model),
     Named("radius") = delta
   );

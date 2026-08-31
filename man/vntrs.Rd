@@ -87,7 +87,7 @@ for optima that are inferior to the best known solution.}
 If \code{TRUE}, suppress progress messages.}
 
 \item{gradient_tolerance}{[\code{numeric(1)}]\cr
-Positive first-order convergence tolerance for the projected gradient.}
+Positive convergence tolerance for the scaled gradient.}
 }
 \value{
 A \code{data.frame} summarizing the identified optima or \code{NULL} if none

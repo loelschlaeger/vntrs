@@ -51,7 +51,7 @@
 #' optimum is discarded early.
 #'
 #' @param gradient_tolerance \[`numeric(1)`\]\cr
-#' Positive first-order convergence tolerance for the projected gradient.
+#' Positive convergence tolerance for the scaled gradient.
 #'
 #' @param time_limit \[`numeric(1)` | `NULL`\]\cr
 #' Optional time limit in seconds. If reached, the search stops early with a

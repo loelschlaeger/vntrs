@@ -1,5 +1,8 @@
 # vntrs 0.2.2
 
+* Replaced the absolute gradient convergence check with a scaled gradient
+  criterion.
+
 * Reworked missing-derivative handling.
 
 * Added damped-BFGS trust-region models and reuse of local curvature across 
