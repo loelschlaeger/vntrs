@@ -143,5 +143,5 @@ Bierlaire et al. (2009) "A Heuristic for Nonlinear Global Optimization"
 rosenbrock <- function(x) 100 * (x[2] - x[1]^2)^2 + (1 - x[1])^2
 vntrs(f = rosenbrock, npar = 2)
 #>   p1 p2        value global
-#> 1  1  1 1.805737e-16   TRUE
+#> 1  1  1 1.805741e-16   TRUE
 ```

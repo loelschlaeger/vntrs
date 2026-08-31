@@ -34,6 +34,7 @@ Authors:
 ``` r
 rosenbrock <- function(x) 100 * (x[2] - x[1]^2)^2 + (1 - x[1])^2
 vntrs(f = rosenbrock, npar = 2)
-#>   p1 p2        value global
-#> 1  1  1 3.576855e-17   TRUE
+#>          p1        p2        value global
+#> 1 1.0000000 1.0000000 3.576861e-17   TRUE
+#> 2 0.9999995 0.9999991 2.070722e-13   TRUE
 ```

@@ -59,8 +59,9 @@ Implements the variable neighborhood trust region search (VNTRS) algorithm for n
     <h2 id="ref-examples">Examples<a class="anchor" aria-label="anchor" href="#ref-examples"></a></h2>
     <div class="sourceCode"><pre class="sourceCode r"><code><span class="r-in"><span><span class="va">rosenbrock</span> <span class="op">&lt;-</span> <span class="kw">function</span><span class="op">(</span><span class="va">x</span><span class="op">)</span> <span class="fl">100</span> <span class="op">*</span> <span class="op">(</span><span class="va">x</span><span class="op">[</span><span class="fl">2</span><span class="op">]</span> <span class="op">-</span> <span class="va">x</span><span class="op">[</span><span class="fl">1</span><span class="op">]</span><span class="op">^</span><span class="fl">2</span><span class="op">)</span><span class="op">^</span><span class="fl">2</span> <span class="op">+</span> <span class="op">(</span><span class="fl">1</span> <span class="op">-</span> <span class="va">x</span><span class="op">[</span><span class="fl">1</span><span class="op">]</span><span class="op">)</span><span class="op">^</span><span class="fl">2</span></span></span>
 <span class="r-in"><span><span class="fu"><a href="vntrs.html">vntrs</a></span><span class="op">(</span>f <span class="op">=</span> <span class="va">rosenbrock</span>, npar <span class="op">=</span> <span class="fl">2</span><span class="op">)</span></span></span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>   p1 p2        value global</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 1  1  1 3.576855e-17   TRUE</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>          p1        p2        value global</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 1 1.0000000 1.0000000 3.576861e-17   TRUE</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 2 0.9999995 0.9999991 2.070722e-13   TRUE</span>
 </code></pre></div>
     </div>
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>
