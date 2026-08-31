@@ -19,11 +19,11 @@ vntrs(
   tolerance = 1e-06,
   inferior_tolerance = 1e-06,
   time_limit = NULL,
-  cores = 1L,
   lower = NULL,
   upper = NULL,
   collect_all = FALSE,
-  quiet = TRUE
+  quiet = TRUE,
+  gradient_tolerance = 1e-06
 )
 }
 \arguments{
@@ -75,9 +75,6 @@ optimum is discarded early.}
 Optional time limit in seconds. If reached, the search stops early with a
 warning.}
 
-\item{cores}{[\code{integer(1)}]\cr
-Number of CPU cores used for parallel evaluation.}
-
 \item{lower, upper}{[\code{numeric(npar)} | \code{NULL}]\cr
 Optional lower and upper parameter bounds. Use \code{NULL} for unbounded
 dimensions.}
@@ -88,6 +85,9 @@ for optima that are inferior to the best known solution.}
 
 \item{quiet}{[\code{logical(1)}]\cr
 If \code{TRUE}, suppress progress messages.}
+
+\item{gradient_tolerance}{[\code{numeric(1)}]\cr
+Positive first-order convergence tolerance for the projected gradient.}
 }
 \value{
 A \code{data.frame} summarizing the identified optima or \code{NULL} if none

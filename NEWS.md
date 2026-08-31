@@ -1,3 +1,10 @@
+# vntrs 0.2.2
+
+* Reworked missing-derivative handling.
+
+* Added damped-BFGS trust-region models and reuse of local curvature across 
+  continued searches.
+
 # vntrs 0.2.1
 
 * Improved documentation.

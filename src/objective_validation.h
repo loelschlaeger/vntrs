@@ -2,8 +2,8 @@
 #define VNTRS_OBJECTIVE_VALIDATION_H
 
 #include <RcppArmadillo.h>
-#include <limits>
 #include <cmath>
+#include <limits>
 
 namespace vntrs {
 
@@ -11,247 +11,237 @@ struct ObjectiveComponents {
   double value;
   arma::vec gradient;
   arma::mat hessian;
+  bool gradient_supplied;
+  bool hessian_supplied;
 };
 
-inline double extract_numeric_scalar(SEXP value_sexp, const char* field_name) {
-  if (!Rf_isNumeric(value_sexp) || Rf_length(value_sexp) != 1) {
-    Rcpp::stop("Function 'f' must return finite '%s'.", field_name);
+inline double extract_scalar(SEXP x, const char* field,
+                             bool require_finite = true) {
+  if (!Rf_isNumeric(x) || Rf_length(x) != 1) {
+    Rcpp::stop("Function 'f' must return finite '%s'.", field);
   }
-  double value = Rcpp::as<double>(value_sexp);
-  if (!R_finite(value)) {
-    Rcpp::stop("Function 'f' must return finite '%s'.", field_name);
+  double value = Rcpp::as<double>(x);
+  if (require_finite && !R_finite(value)) {
+    Rcpp::stop("Function 'f' must return finite '%s'.", field);
   }
   return value;
 }
 
-inline double extract_value(SEXP result) {
+inline double extract_value(SEXP result, bool require_finite = true) {
   if (Rf_isNumeric(result)) {
-    return extract_numeric_scalar(result, "value");
+    return extract_scalar(result, "value", require_finite);
   }
   if (TYPEOF(result) != VECSXP) {
-    Rcpp::stop("Function 'f' must return either a numeric value or a list with elements 'value', 'gradient', and 'hessian'.");
+    Rcpp::stop(
+      "Function 'f' must return a numeric value or a list with 'value' "
+      "and optional 'gradient' and 'hessian'."
+    );
   }
   Rcpp::List out(result);
   if (!out.containsElementNamed("value")) {
     Rcpp::stop("Function 'f' must provide element 'value'.");
   }
-  return extract_numeric_scalar(out["value"], "value");
+  return extract_scalar(out["value"], "value", require_finite);
 }
 
-inline arma::vec extract_gradient(const Rcpp::List& out,
-                                  int npar,
-                                  bool require_finite_gradient,
-                                  bool& available) {
-  available = out.containsElementNamed("gradient");
-  if (!available) {
-    return arma::vec(npar, arma::fill::value(NA_REAL));
+inline arma::vec extract_gradient(const Rcpp::List& out, int n, bool& found) {
+  found = out.containsElementNamed("gradient");
+  if (!found) {
+    return arma::vec(n, arma::fill::value(NA_REAL));
   }
-  SEXP gradient_sexp = out["gradient"];
-  if (!Rf_isNumeric(gradient_sexp)) {
-    Rcpp::stop("Function 'f' must return numeric 'gradient'.");
+  SEXP x = out["gradient"];
+  if (!Rf_isNumeric(x) || Rf_length(x) != n) {
+    Rcpp::stop("Function 'f' must return numeric 'gradient' of length 'npar'.");
   }
-  Rcpp::NumericVector gradient_vec(gradient_sexp);
-  if (gradient_vec.size() != npar) {
-    Rcpp::stop("Function 'f' must return gradient with length matching 'npar'.");
-  }
-  arma::vec gradient = Rcpp::as<arma::vec>(gradient_vec);
-  if (require_finite_gradient && !gradient.is_finite()) {
+  arma::vec gradient = Rcpp::as<arma::vec>(x);
+  if (!gradient.is_finite()) {
     Rcpp::stop("Function 'f' must return finite gradient values.");
   }
   return gradient;
 }
 
-inline arma::mat extract_hessian(const Rcpp::List& out,
-                                 int npar,
-                                 bool require_finite_hessian,
-                                 bool& available) {
-  available = out.containsElementNamed("hessian");
-  if (!available) {
-    return arma::mat(npar, npar, arma::fill::value(NA_REAL));
+inline arma::mat extract_hessian(const Rcpp::List& out, int n, bool& found) {
+  found = out.containsElementNamed("hessian");
+  if (!found) {
+    return arma::mat(n, n, arma::fill::value(NA_REAL));
   }
-  SEXP hessian_sexp = out["hessian"];
-  if (!Rf_isNumeric(hessian_sexp) || !Rf_isMatrix(hessian_sexp)) {
+  SEXP x = out["hessian"];
+  if (!Rf_isNumeric(x) || !Rf_isMatrix(x)) {
     Rcpp::stop("Function 'f' must return numeric matrix 'hessian'.");
   }
-  Rcpp::NumericMatrix hessian_mat(hessian_sexp);
-  if (hessian_mat.nrow() != npar || hessian_mat.ncol() != npar) {
+  Rcpp::NumericMatrix matrix(x);
+  if (matrix.nrow() != n || matrix.ncol() != n) {
     Rcpp::stop("Function 'f' must return Hessian with dimension 'npar' x 'npar'.");
   }
-  arma::mat hessian = Rcpp::as<arma::mat>(hessian_mat);
-  if (require_finite_hessian && !hessian.is_finite()) {
+  arma::mat hessian = Rcpp::as<arma::mat>(matrix);
+  if (!hessian.is_finite()) {
     Rcpp::stop("Function 'f' must return finite Hessian entries.");
   }
   return hessian;
 }
 
-inline arma::vec finite_difference_steps(const arma::vec& point) {
-  arma::vec steps(point.n_elem);
-  double eps = std::sqrt(std::numeric_limits<double>::epsilon());
-  for (arma::uword i = 0; i < point.n_elem; ++i) {
-    double scale = std::fabs(point(i));
-    if (!std::isfinite(scale)) {
-      scale = 1.0;
-    }
-    double step = eps * (scale + 1.0);
-    if (!std::isfinite(step) || step <= std::numeric_limits<double>::min()) {
-      step = eps;
-    }
-    steps(i) = step;
+inline arma::vec finite_difference_steps(const arma::vec& x,
+                                         double power,
+                                         double value_scale = 1.0) {
+  double epsilon = std::numeric_limits<double>::epsilon();
+  double base = std::pow(epsilon, power);
+  double value_step = std::pow(
+    epsilon * std::max(1.0, std::fabs(value_scale)), power
+  );
+  arma::vec steps(x.n_elem);
+  for (arma::uword i = 0; i < x.n_elem; ++i) {
+    double scale = std::isfinite(x(i)) ? std::max(1.0, std::fabs(x(i))) : 1.0;
+    steps(i) = std::max(base * scale, value_step);
   }
   return steps;
 }
 
-inline double evaluate_value(Rcpp::Function f, const arma::vec& point) {
-  SEXP result = f(Rcpp::wrap(point));
-  return extract_value(result);
+struct Stencil { int direction; double step; };
+
+inline Stencil select_stencil(double x, double step, double lower,
+                              double upper, double points = 2.0) {
+  double forward = std::isfinite(upper) ? std::max(0.0, upper - x) : INFINITY;
+  double backward = std::isfinite(lower) ? std::max(0.0, x - lower) : INFINITY;
+  if (forward >= step && backward >= step) {
+    return Stencil{0, step};
+  }
+  int direction = forward >= backward ? 1 : -1;
+  double room = direction > 0 ? forward : backward;
+  step = std::isfinite(room) ? std::min(step, room / points) : step;
+  double minimum = std::numeric_limits<double>::epsilon() *
+    std::max(1.0, std::fabs(x));
+  return Stencil{direction, step > minimum ? step : 0.0};
 }
 
-inline arma::vec approximate_gradient(Rcpp::Function f,
-                                      const arma::vec& point,
-                                      const arma::vec& steps,
-                                      arma::vec& forward_values,
-                                      arma::vec& backward_values) {
-  arma::vec gradient(point.n_elem);
-  forward_values.set_size(point.n_elem);
-  backward_values.set_size(point.n_elem);
+inline double zero_like(double) { return 0.0; }
+inline arma::vec zero_like(const arma::vec& x) {
+  return arma::vec(x.n_elem, arma::fill::zeros);
+}
 
-  for (arma::uword i = 0; i < point.n_elem; ++i) {
-    arma::vec x_forward = point;
-    arma::vec x_backward = point;
-    double step = steps(i);
-    x_forward(i) += step;
-    x_backward(i) -= step;
-
-    double value_forward = evaluate_value(f, x_forward);
-    double value_backward = evaluate_value(f, x_backward);
-
-    forward_values(i) = value_forward;
-    backward_values(i) = value_backward;
-
-    gradient(i) = (value_forward - value_backward) / (2.0 * step);
+template <typename T, typename Evaluate>
+T finite_difference(const arma::vec& x, const T& base, arma::uword i,
+                    const Stencil& stencil, Evaluate evaluate) {
+  if (stencil.step == 0.0) {
+    return zero_like(base);
   }
+  arma::vec first = x;
+  if (stencil.direction == 0) {
+    arma::vec second = x;
+    first(i) += stencil.step;
+    second(i) -= stencil.step;
+    return (evaluate(first) - evaluate(second)) / (2.0 * stencil.step);
+  }
+  arma::vec second = x;
+  first(i) += stencil.direction * stencil.step;
+  second(i) += stencil.direction * 2.0 * stencil.step;
+  T first_change = evaluate(first) - base;
+  T second_change = evaluate(second) - base;
+  return stencil.direction * (4.0 * first_change - second_change) /
+    (2.0 * stencil.step);
+}
 
+inline double evaluate_value(Rcpp::Function f, const arma::vec& x) {
+  return extract_value(f(Rcpp::wrap(x)));
+}
+
+inline arma::vec evaluate_supplied_gradient(Rcpp::Function f,
+                                            const arma::vec& x) {
+  SEXP result = f(Rcpp::wrap(x));
+  extract_value(result);
+  if (TYPEOF(result) != VECSXP) {
+    Rcpp::stop("Function 'f' did not consistently provide 'gradient'.");
+  }
+  bool found = false;
+  arma::vec gradient = extract_gradient(
+    Rcpp::List(result), static_cast<int>(x.n_elem), found
+  );
+  if (!found) {
+    Rcpp::stop("Function 'f' did not consistently provide 'gradient'.");
+  }
   return gradient;
 }
 
-inline arma::mat approximate_hessian(Rcpp::Function f,
-                                     const arma::vec& point,
-                                     const arma::vec& steps,
-                                     double base_value,
-                                     const arma::vec& forward_values,
-                                     const arma::vec& backward_values) {
-  arma::uword n = point.n_elem;
-  arma::mat hessian(n, n);
-  hessian.zeros();
-
-  for (arma::uword i = 0; i < n; ++i) {
-    double step_i = steps(i);
-    double diag = (forward_values(i) - 2.0 * base_value + backward_values(i)) /
-      (step_i * step_i);
-    hessian(i, i) = diag;
+inline arma::vec approximate_gradient(Rcpp::Function f, const arma::vec& x,
+                                      double value, const arma::vec& lower,
+                                      const arma::vec& upper) {
+  arma::vec gradient(x.n_elem);
+  arma::vec steps = finite_difference_steps(x, 1.0 / 3.0, value);
+  auto evaluate = [&](const arma::vec& point) { return evaluate_value(f, point); };
+  for (arma::uword i = 0; i < x.n_elem; ++i) {
+    gradient(i) = finite_difference(
+      x, value, i, select_stencil(x(i), steps(i), lower(i), upper(i)), evaluate
+    );
   }
+  return gradient;
+}
 
-  for (arma::uword i = 0; i < n; ++i) {
-    for (arma::uword j = i + 1; j < n; ++j) {
-      double step_i = steps(i);
-      double step_j = steps(j);
-
-      arma::vec x_pp = point;
-      arma::vec x_pm = point;
-      arma::vec x_mp = point;
-      arma::vec x_mm = point;
-
-      x_pp(i) += step_i; x_pp(j) += step_j;
-      x_pm(i) += step_i; x_pm(j) -= step_j;
-      x_mp(i) -= step_i; x_mp(j) += step_j;
-      x_mm(i) -= step_i; x_mm(j) -= step_j;
-
-      double f_pp = evaluate_value(f, x_pp);
-      double f_pm = evaluate_value(f, x_pm);
-      double f_mp = evaluate_value(f, x_mp);
-      double f_mm = evaluate_value(f, x_mm);
-
-      double mixed = (f_pp - f_pm - f_mp + f_mm) / (4.0 * step_i * step_j);
-      hessian(i, j) = mixed;
-      hessian(j, i) = mixed;
+inline arma::mat approximate_hessian_from_gradient(
+    Rcpp::Function f, const arma::vec& x, const arma::vec& gradient,
+    const arma::vec& lower, const arma::vec& upper) {
+  arma::mat hessian(x.n_elem, x.n_elem, arma::fill::zeros);
+  arma::vec steps = finite_difference_steps(x, 1.0 / 3.0);
+  for (arma::uword i = 0; i < x.n_elem; ++i) {
+    Stencil stencil = select_stencil(x(i), steps(i), lower(i), upper(i), 1.0);
+    if (stencil.direction == 0) {
+      stencil.direction = 1;
+    }
+    if (stencil.step > 0.0) {
+      arma::vec shifted = x;
+      shifted(i) += stencil.direction * stencil.step;
+      hessian.col(i) = stencil.direction *
+        (evaluate_supplied_gradient(f, shifted) - gradient) / stencil.step;
     }
   }
+  return 0.5 * (hessian + hessian.t());
+}
 
-  return hessian;
+inline arma::mat approximate_hessian_from_values(
+    Rcpp::Function f, const arma::vec& x, double value,
+    const arma::vec& lower, const arma::vec& upper) {
+  arma::vec gradient = approximate_gradient(f, x, value, lower, upper);
+  arma::vec steps = finite_difference_steps(x, 0.25, value);
+  arma::mat hessian(x.n_elem, x.n_elem, arma::fill::zeros);
+  auto evaluate = [&](const arma::vec& point) {
+    double point_value = evaluate_value(f, point);
+    return approximate_gradient(f, point, point_value, lower, upper);
+  };
+  for (arma::uword i = 0; i < x.n_elem; ++i) {
+    hessian.col(i) = finite_difference(
+      x, gradient, i, select_stencil(x(i), steps(i), lower(i), upper(i)), evaluate
+    );
+  }
+  return 0.5 * (hessian + hessian.t());
 }
 
 inline ObjectiveComponents parse_objective(Rcpp::Function f,
-                                           const arma::vec& point,
-                                           bool require_finite_gradient,
-                                           bool require_finite_hessian) {
-  SEXP result = f(Rcpp::wrap(point));
-
-  ObjectiveComponents components;
-  components.value = extract_value(result);
-  components.gradient.set_size(point.n_elem);
-  components.hessian.set_size(point.n_elem, point.n_elem);
-
-  bool gradient_available = false;
-  bool hessian_available = false;
-  arma::vec gradient(point.n_elem, arma::fill::value(NA_REAL));
-  arma::mat hessian(point.n_elem, point.n_elem, arma::fill::value(NA_REAL));
-
+                                           const arma::vec& x,
+                                           bool need_gradient,
+                                           const arma::vec& lower,
+                                           const arma::vec& upper,
+                                           bool allow_nonfinite = false) {
+  SEXP result = f(Rcpp::wrap(x));
+  ObjectiveComponents out{
+    extract_value(result, !allow_nonfinite),
+    arma::vec(x.n_elem, arma::fill::value(NA_REAL)),
+    arma::mat(x.n_elem, x.n_elem, arma::fill::value(NA_REAL)),
+    false,
+    false
+  };
+  if (!std::isfinite(out.value)) return out;
   if (TYPEOF(result) == VECSXP) {
-    Rcpp::List out(result);
-    gradient = extract_gradient(out, point.n_elem, require_finite_gradient, gradient_available);
-    hessian = extract_hessian(out, point.n_elem, require_finite_hessian, hessian_available);
-    if (gradient_available && !gradient.is_finite()) {
-      gradient_available = false;
-    }
-    if (hessian_available && !hessian.is_finite()) {
-      hessian_available = false;
-    }
+    Rcpp::List list(result);
+    out.gradient = extract_gradient(list, x.n_elem, out.gradient_supplied);
+    out.hessian = extract_hessian(list, x.n_elem, out.hessian_supplied);
   }
-
-  arma::vec steps;
-  arma::vec forward_values;
-  arma::vec backward_values;
-
-  if (!gradient_available || !hessian_available) {
-    steps = finite_difference_steps(point);
+  if (need_gradient && !out.gradient_supplied) {
+    out.gradient = approximate_gradient(f, x, out.value, lower, upper);
   }
-
-  if (!gradient_available) {
-    gradient = approximate_gradient(f, point, steps, forward_values, backward_values);
-  }
-
-  if (!hessian_available) {
-    if (forward_values.n_elem == 0 || backward_values.n_elem == 0) {
-      forward_values.set_size(point.n_elem);
-      backward_values.set_size(point.n_elem);
-      forward_values.fill(NA_REAL);
-      backward_values.fill(NA_REAL);
-      for (arma::uword i = 0; i < point.n_elem; ++i) {
-        arma::vec x_forward = point;
-        arma::vec x_backward = point;
-        double step = steps(i);
-        x_forward(i) += step;
-        x_backward(i) -= step;
-        forward_values(i) = evaluate_value(f, x_forward);
-        backward_values(i) = evaluate_value(f, x_backward);
-      }
-    }
-    hessian = approximate_hessian(f, point, steps, components.value, forward_values, backward_values);
-  }
-
-  if (require_finite_gradient && !gradient.is_finite()) {
+  if (need_gradient && !out.gradient.is_finite()) {
     Rcpp::stop("Function 'f' must return finite gradient values.");
   }
-  if (require_finite_hessian && !hessian.is_finite()) {
-    Rcpp::stop("Function 'f' must return finite Hessian entries.");
-  }
-
-  components.gradient = gradient;
-  components.hessian = hessian;
-
-  return components;
+  return out;
 }
 
 } // namespace vntrs
 
-#endif // VNTRS_OBJECTIVE_VALIDATION_H
+#endif

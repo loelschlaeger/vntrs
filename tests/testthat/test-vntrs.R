@@ -32,7 +32,7 @@ sleepy <- function(x) {
   quadratic_function(matrix(2))(x)
 }
 
-two_basin <- function(x) {
+two_optima <- function(x) {
   stopifnot(is.numeric(x), length(x) == 1)
   if (x <= 1) {
     value <- x^2
@@ -83,11 +83,11 @@ call_vntrs_cpp <- function(
     inferior_tolerance = 1e-6,
     has_time_limit = FALSE,
     time_limit = 0,
-    cores = 1,
     lower = rep(-Inf, npar),
     upper = rep(Inf, npar),
     quiet = TRUE,
-    collect_all_optima = FALSE
+    collect_all_optima = FALSE,
+    gradient_tolerance = 1e-6
 ) {
   vntrs:::vntrs_cpp(
     f = f,
@@ -105,11 +105,11 @@ call_vntrs_cpp <- function(
     inferior_tolerance = inferior_tolerance,
     has_time_limit = has_time_limit,
     time_limit = time_limit,
-    cores = as.integer(cores),
     lower = as.numeric(lower),
     upper = as.numeric(upper),
     quiet = quiet,
-    collect_all_optima = collect_all_optima
+    collect_all_optima = collect_all_optima,
+    gradient_tolerance = gradient_tolerance
   )
 }
 
@@ -127,7 +127,6 @@ valid_vntrs_args <- function() {
     iterlim = 1,
     tolerance = 1e-6,
     inferior_tolerance = 1e-6,
-    cores = 1,
     quiet = TRUE
   )
 }
@@ -149,10 +148,9 @@ test_that("vntrs respects parameter bounds", {
     upper = c(0.5, 0.5),
     quiet = TRUE
   )
-  if (!is.null(res)) {
-    expect_true(all(res$p1 >= -0.5 - 1e-8 & res$p1 <= 0.5 + 1e-8))
-    expect_true(all(res$p2 >= -0.5 - 1e-8 & res$p2 <= 0.5 + 1e-8))
-  }
+  expect_s3_class(res, "data.frame")
+  expect_true(all(res$p1 >= -0.5 - 1e-8 & res$p1 <= 0.5 + 1e-8))
+  expect_true(all(res$p2 >= -0.5 - 1e-8 & res$p2 <= 0.5 + 1e-8))
 })
 
 test_that("vntrs marks global optimum", {
@@ -166,10 +164,9 @@ test_that("vntrs marks global optimum", {
     iterlim = 5,
     quiet = TRUE
   )
-  if (!is.null(res)) {
-    best_idx <- which.min(res$value)
-    expect_true(res$global[best_idx])
-  }
+  expect_s3_class(res, "data.frame")
+  best_idx <- which.min(res$value)
+  expect_true(res$global[best_idx])
 })
 
 test_that("vntrs finds minima and maxima", {
@@ -242,7 +239,7 @@ test_that("vntrs handles missing optima and time limits", {
 test_that("vntrs can retain all local optima", {
   set.seed(1)
   base_args <- list(
-    f = two_basin,
+    f = two_optima,
     npar = 1,
     init_runs = 1,
     init_min = 0,
@@ -323,6 +320,7 @@ test_that("trust_region respects bound constraints", {
   expect_equal(res$argument[2], upper[2], tolerance = 1e-8)
 })
 
+
 test_that("vntrs validates public arguments", {
   expect_vntrs_error(f = 1)
   expect_vntrs_error(npar = 0)
@@ -337,8 +335,9 @@ test_that("vntrs validates public arguments", {
   expect_vntrs_error(iterlim = 0)
   expect_vntrs_error(tolerance = -1)
   expect_vntrs_error(inferior_tolerance = -1)
+  expect_vntrs_error(gradient_tolerance = 0)
   expect_vntrs_error(time_limit = -1)
-  expect_vntrs_error(cores = 0)
+  expect_vntrs_error(time_limit = 0)
   expect_vntrs_error(lower = c(0, 0))
   expect_vntrs_error(lower = NA_real_)
   expect_vntrs_error(upper = c(0, 0))
@@ -447,4 +446,3 @@ test_that("finite differences handle non-finite starting scales", {
   expect_true(res$converged)
   expect_equal(res$value, 0)
 })
-

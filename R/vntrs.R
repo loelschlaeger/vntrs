@@ -50,12 +50,12 @@
 #' Maximum objective-value gap from the best known solution before a local
 #' optimum is discarded early.
 #'
+#' @param gradient_tolerance \[`numeric(1)`\]\cr
+#' Positive first-order convergence tolerance for the projected gradient.
+#'
 #' @param time_limit \[`numeric(1)` | `NULL`\]\cr
 #' Optional time limit in seconds. If reached, the search stops early with a
 #' warning.
-#'
-#' @param cores \[`integer(1)`\]\cr
-#' Number of CPU cores used for parallel evaluation.
 #'
 #' @param lower,upper \[`numeric(npar)` | `NULL`\]\cr
 #' Optional lower and upper parameter bounds. Use \code{NULL} for unbounded
@@ -93,11 +93,11 @@ vntrs <- function(
     tolerance = 1e-6,
     inferior_tolerance = 1e-6,
     time_limit = NULL,
-    cores = 1L,
     lower = NULL,
     upper = NULL,
     collect_all = FALSE,
-    quiet = TRUE
+    quiet = TRUE,
+    gradient_tolerance = 1e-6
   ) {
   oeli::input_check_response(
     check = checkmate::check_function(f),
@@ -166,15 +166,13 @@ vntrs <- function(
       check = checkmate::check_number(time_limit, finite = TRUE, lower = 0),
       var_name = "time_limit"
     )
+    if (time_limit <= 0) {
+      stop("Please ensure 'time_limit' is positive.", call. = FALSE)
+    }
     time_limit <- as.numeric(time_limit)
   } else {
     time_limit <- 0
   }
-  oeli::input_check_response(
-    check = checkmate::check_count(cores, positive = TRUE),
-    var_name = "cores"
-  )
-  cores <- as.integer(cores)
   if (is.null(lower)) {
     lower <- rep.int(-Inf, npar)
   } else {
@@ -211,27 +209,16 @@ vntrs <- function(
     var_name = "quiet"
   )
   quiet <- isTRUE(quiet)
+  oeli::input_check_response(
+    check = checkmate::check_number(
+      gradient_tolerance, finite = TRUE, lower = .Machine$double.xmin
+    ),
+    var_name = "gradient_tolerance"
+  )
   .Call(
-    `_vntrs_vntrs_cpp`,
-    f,
-    npar,
-    minimize,
-    init_runs,
-    init_min,
-    init_max,
-    init_iterlim,
-    neighborhoods,
-    neighbors,
-    beta,
-    iterlim,
-    tolerance,
-    inferior_tolerance,
-    has_time_limit,
-    time_limit,
-    cores,
-    lower,
-    upper,
-    quiet,
-    collect_all
+    `_vntrs_vntrs_cpp`, f, npar, minimize, init_runs, init_min, init_max,
+    init_iterlim, neighborhoods, neighbors, beta, iterlim, tolerance,
+    inferior_tolerance, has_time_limit, time_limit, lower, upper, quiet,
+    collect_all, gradient_tolerance
   )
 }

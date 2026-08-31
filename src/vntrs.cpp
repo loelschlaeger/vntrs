@@ -24,9 +24,9 @@ struct Controls {
   int iterlim;
   double tolerance;
   double inferior_tolerance;
+  double gradient_tolerance;
   bool has_time_limit;
   double time_limit;
-  int cores;
   arma::vec par_lower;
   arma::vec par_upper;
   bool collect_all_optima;
@@ -46,10 +46,10 @@ static Controls create_controls(
     double inferior_tolerance,
     bool has_time_limit,
     double time_limit,
-    int cores,
     NumericVector par_lower_vec,
     NumericVector par_upper_vec,
-    bool collect_all_optima
+    bool collect_all_optima,
+    double gradient_tolerance
 ) {
 
   Controls cfg;
@@ -78,6 +78,9 @@ static Controls create_controls(
   if (!R_finite(inferior_tolerance) || inferior_tolerance < 0.0) {
     stop("'inferior_tolerance' must be finite and greater than or equal to zero.");
   }
+  if (!R_finite(gradient_tolerance) || gradient_tolerance <= 0.0) {
+    stop("'gradient_tolerance' must be finite and positive.");
+  }
   if (init_max < init_min) {
     stop("'init_max' must be greater than or equal to 'init_min'.");
   }
@@ -88,10 +91,6 @@ static Controls create_controls(
   } else {
     time_limit = 0.0;
   }
-  if (cores <= 0) {
-    stop("'cores' must be positive.");
-  }
-
   if (par_lower_vec.size() != npar) {
     stop("'lower' must have length matching 'npar'.");
   }
@@ -126,66 +125,55 @@ static Controls create_controls(
   cfg.iterlim = iterlim;
   cfg.tolerance = tolerance;
   cfg.inferior_tolerance = inferior_tolerance;
+  cfg.gradient_tolerance = gradient_tolerance;
   cfg.has_time_limit = has_time_limit;
   cfg.time_limit = time_limit;
-  cfg.cores = cores;
   cfg.par_lower = as<arma::vec>(par_lower_vec);
   cfg.par_upper = as<arma::vec>(par_upper_vec);
   cfg.collect_all_optima = collect_all_optima;
-
-  try {
-    Environment parallel_env = Environment::namespace_env("parallel");
-    Function detectCores = parallel_env["detectCores"];
-    SEXP detected = detectCores();
-    if (!Rf_isNull(detected)) {
-      int max_cores = as<int>(detected);
-      if (max_cores > 0 && cfg.cores > max_cores) {
-        warning("'cores' reduced to available cores.");
-        cfg.cores = max_cores;
-      }
-    }
-  } catch (const std::exception& ex) {
-    warning("Failed to query available cores: %s", ex.what());
-  }
 
   return cfg;
 }
 
 static void check_function(Function f, int npar, const Controls& controls) {
-  int test_runs = 10;
-  NumericVector samples = runif(test_runs * npar, controls.init_min, controls.init_max);
-  NumericMatrix points(test_runs, npar);
-  for (int i = 0, idx = 0; i < test_runs; ++i) {
-    for (int j = 0; j < npar; ++j, ++idx) {
-      double value = std::round(samples[idx] * 10.0) / 10.0;
-      points(i, j) = value;
+  arma::vec point(npar);
+  double midpoint = 0.5 * controls.init_min + 0.5 * controls.init_max;
+  for (int i = 0; i < npar; ++i) {
+    point(i) = midpoint;
+    if (std::isfinite(controls.par_lower(i))) {
+      point(i) = std::max(point(i), controls.par_lower(i));
+    }
+    if (std::isfinite(controls.par_upper(i))) {
+      point(i) = std::min(point(i), controls.par_upper(i));
     }
   }
-
-  for (int run = 0; run < test_runs; ++run) {
-    NumericVector point = points(run, _);
-    arma::vec point_vec = Rcpp::as<arma::vec>(point);
-    vntrs::parse_objective(
-      f,
-      point_vec,
-      /*require_finite_gradient=*/true,
-      /*require_finite_hessian=*/true);
-  }
+  vntrs::parse_objective(
+    f, point, /*need_gradient=*/false, controls.par_lower, controls.par_upper
+  );
 }
 
 struct OptimaStorage {
   int npar;
   std::vector<arma::vec> arguments;
   std::vector<double> values;
+  std::vector<arma::mat> models;
 
   explicit OptimaStorage(int npar_) : npar(npar_) {}
 
   bool empty() const { return values.empty(); }
   std::size_t size() const { return values.size(); }
 
-  void append(const arma::vec& argument, double value) {
+  void append(const arma::vec& argument,
+              double value,
+              const arma::mat& model) {
     arguments.push_back(argument);
     values.push_back(value);
+    if (model.n_rows == static_cast<arma::uword>(npar) &&
+        model.n_cols == static_cast<arma::uword>(npar) && model.is_finite()) {
+      models.push_back(model);
+    } else {
+      models.push_back(arma::eye<arma::mat>(npar, npar));
+    }
   }
 
   bool unique(const arma::vec& argument, double tolerance) const {
@@ -251,6 +239,14 @@ struct OptimaStorage {
     }
     return arguments[idx];
   }
+
+  arma::mat best_model(bool minimize) const {
+    int idx = best_index(minimize);
+    if (idx < 0 || static_cast<std::size_t>(idx) >= models.size()) {
+      return arma::eye<arma::mat>(npar, npar);
+    }
+    return models[idx];
+  }
 };
 
 static bool should_interrupt(
@@ -259,12 +255,12 @@ static bool should_interrupt(
    const OptimaStorage& storage,
    bool minimize,
    double inferior_tolerance,
+   double optimum_tolerance,
+   const arma::vec& lower,
+   const arma::vec& upper,
    bool quiet,
    bool collect_all_optima
 ) {
-  if (collect_all_optima) {
-    return false;
-  }
   if (storage.empty()) {
     return false;
   }
@@ -272,31 +268,34 @@ static bool should_interrupt(
     return false;
   }
 
-  arma::vec best_argument = storage.best_argument(minimize);
   double best_value = storage.best_value(minimize);
   if (!std::isfinite(best_value)) {
     return false;
   }
 
+  bool near_known_optimum = false;
   for (std::size_t i = 0; i < storage.arguments.size(); ++i) {
     arma::vec diff = storage.arguments[i] - point;
     double dist_sq = arma::dot(diff, diff);
     if (!std::isfinite(dist_sq)) {
       dist_sq = std::numeric_limits<double>::infinity();
     }
-    if (dist_sq <= 1.0) {
+    near_known_optimum = near_known_optimum || dist_sq <= 1.0;
+    if (dist_sq <= optimum_tolerance * optimum_tolerance) {
       if (!quiet) {
         Rcpp::Rcout << " [optimum already visited]";
       }
       return true;
     }
   }
+  if (collect_all_optima) return false;
 
   vntrs::ObjectiveComponents eval = vntrs::parse_objective(
     f,
     point,
-    /*require_finite_gradient=*/false,
-    /*require_finite_hessian=*/false);
+    /*need_gradient=*/true,
+    lower,
+    upper);
   arma::vec gradient = eval.gradient;
   double value = eval.value;
   if (!gradient.is_finite() || !std::isfinite(value)) {
@@ -305,6 +304,15 @@ static bool should_interrupt(
 
   double grad_norm_sq = arma::dot(gradient, gradient);
   if (grad_norm_sq <= std::pow(1e-3, 2)) {
+    bool no_meaningful_improvement = minimize
+      ? value >= best_value - inferior_tolerance
+      : value <= best_value + inferior_tolerance;
+    if (near_known_optimum && no_meaningful_improvement) {
+      if (!quiet) {
+        Rcpp::Rcout << " [optimum already visited]";
+      }
+      return true;
+    }
     if (minimize) {
       if (value > best_value + inferior_tolerance) {
         if (!quiet) {
@@ -336,7 +344,9 @@ List trust_region_cpp(
     double tol,
     double eta,
     NumericVector lower,
-    NumericVector upper
+    NumericVector upper,
+    Nullable<NumericMatrix> initial_model = R_NilValue,
+    double initial_delta = -1.0
 );
 
 static List run_local(
@@ -345,49 +355,94 @@ static List run_local(
     bool minimize,
     const Controls& controls,
     OptimaStorage& storage,
-    bool quiet
+    bool quiet,
+    int iteration_limit
 ) {
-  int batches = storage.empty() ? 1 : controls.iterlim;
-  arma::vec current = parinit;
-  List last;
-
-  for (int b = 0; b < batches; ++b) {
-    int iterlim = std::max(1, controls.iterlim / (storage.empty() ? 1 : batches));
-    last = trust_region_cpp(
-      f,
-      wrap(current),
-      1.0,
-      10.0,
-      iterlim,
-      minimize,
-      1e-6,
-      0.1,
-      wrap(controls.par_lower),
-      wrap(controls.par_upper)
+  vntrs::ObjectiveComponents start = vntrs::parse_objective(
+    f, parinit, /*need_gradient=*/false, controls.par_lower,
+    controls.par_upper, /*allow_nonfinite=*/true
+  );
+  if (!std::isfinite(start.value)) {
+    return List::create(
+      Named("success") = false,
+      Named("value") = NA_REAL,
+      Named("argument") = NumericVector(storage.npar, NA_REAL)
     );
-
-    bool converged = as<bool>(last["converged"]);
-    arma::vec argument = as<arma::vec>(last["argument"]);
-
-    if (b < batches - 1) {
-      if (converged) {
-        break;
-      }
-      if (should_interrupt(
-            f, argument, storage, minimize, controls.inferior_tolerance,
-            quiet, controls.collect_all_optima)
-          )
-        {
-        NumericVector arg_out(storage.npar, NA_REAL);
-        return List::create(
-          Named("success") = false,
-          Named("value") = NA_REAL,
-          Named("argument") = arg_out
+  }
+  arma::vec current = parinit;
+  int remaining = std::max(1, iteration_limit);
+  List last;
+  bool has_state = false;
+  bool warm_start = !storage.empty();
+  while (remaining > 0) {
+    int chunk = storage.empty() ? remaining : std::min(20, remaining);
+    if (!has_state) {
+      if (warm_start) {
+        NumericMatrix warm_model = wrap(storage.best_model(minimize));
+        last = trust_region_cpp(
+          f,
+          wrap(current),
+          1.0,
+          10.0,
+          chunk,
+          minimize,
+          controls.gradient_tolerance,
+          0.1,
+          wrap(controls.par_lower),
+          wrap(controls.par_upper),
+          warm_model,
+          1.0
+        );
+      } else {
+        last = trust_region_cpp(
+          f,
+          wrap(current),
+          1.0,
+          10.0,
+          chunk,
+          minimize,
+          controls.gradient_tolerance,
+          0.1,
+          wrap(controls.par_lower),
+          wrap(controls.par_upper)
         );
       }
-      current = argument;
+      has_state = true;
     } else {
-      current = argument;
+      NumericMatrix previous_model = last["model"];
+      double previous_radius = as<double>(last["radius"]);
+      last = trust_region_cpp(
+        f,
+        wrap(current),
+        1.0,
+        10.0,
+        chunk,
+        minimize,
+        controls.gradient_tolerance,
+        0.1,
+        wrap(controls.par_lower),
+        wrap(controls.par_upper),
+        previous_model,
+        previous_radius
+      );
+    }
+    remaining -= chunk;
+    bool converged = as<bool>(last["converged"]);
+    current = as<arma::vec>(last["argument"]);
+    if (converged || remaining == 0) {
+      break;
+    }
+    if (should_interrupt(
+          f, current, storage, minimize, controls.inferior_tolerance,
+          controls.tolerance,
+          controls.par_lower, controls.par_upper,
+          quiet, controls.collect_all_optima)) {
+      NumericVector arg_out(storage.npar, NA_REAL);
+      return List::create(
+        Named("success") = false,
+        Named("value") = NA_REAL,
+        Named("argument") = arg_out
+      );
     }
   }
 
@@ -404,19 +459,19 @@ static List run_local(
   return List::create(
     Named("success") = as<bool>(last["converged"]),
     Named("value") = value,
-    Named("argument") = argument_out
+    Named("argument") = argument_out,
+    Named("model") = last["model"],
+    Named("radius") = last["radius"]
   );
 }
 
 static std::vector<arma::vec> select_neighbors(
-    Function f, const arma::vec& x, double expansion, const Controls& controls
+    const arma::vec& x,
+    double expansion,
+    const Controls& controls,
+    const arma::mat& curvature
 ) {
-  vntrs::ObjectiveComponents eval = vntrs::parse_objective(
-    f,
-    x,
-    /*require_finite_gradient=*/false,
-    /*require_finite_hessian=*/false);
-  arma::mat hessian = eval.hessian;
+  arma::mat hessian = curvature;
   if (!hessian.is_finite()) {
     hessian.eye(controls.npar, controls.npar);
   }
@@ -433,7 +488,7 @@ static std::vector<arma::vec> select_neighbors(
     eigvec.eye(controls.npar, controls.npar);
   }
 
-  arma::vec scaled = controls.beta * eigval / expansion;
+  arma::vec scaled = controls.beta * arma::abs(eigval) / expansion;
   if (!scaled.is_finite()) {
     scaled.zeros();
   } else {
@@ -513,28 +568,27 @@ static List initialize_search(
 
   for (int run = 0; run < controls.init_runs; ++run) {
     arma::vec start = generate_start(npar, controls);
+    if (!quiet) {
+      Rcpp::Rcout << "** Run " << (run + 1);
+    }
     auto run_start = std::chrono::steady_clock::now();
-    List local = trust_region_cpp(
+    List local = run_local(
       f,
-      wrap(start),
-      1.0,
-      10.0,
-      std::max(1, controls.init_iterlim),
+      start,
       minimize,
-      1e-6,
-      0.1,
-      wrap(controls.par_lower),
-      wrap(controls.par_upper)
+      controls,
+      storage,
+      quiet,
+      controls.init_iterlim
     );
     auto run_end = std::chrono::steady_clock::now();
     double duration = std::chrono::duration<double>(run_end - run_start).count();
 
-    bool success = as<bool>(local["converged"]);
+    bool success = as<bool>(local["success"]);
     arma::vec argument = as<arma::vec>(local["argument"]);
     double value = as<double>(local["value"]);
 
     if (!quiet) {
-      Rcpp::Rcout << "** Run " << (run + 1);
       Rcpp::Rcout << " [" << std::round(duration) << " s]";
     }
 
@@ -543,7 +597,8 @@ static List initialize_search(
         Rcpp::Rcout << " [found optimum]";
       }
       if (storage.unique(argument, controls.tolerance)) {
-        storage.append(argument, value);
+        arma::mat local_model = as<arma::mat>(local["model"]);
+        storage.append(argument, value, local_model);
         if (!quiet) {
           Rcpp::Rcout << " [optimum is unknown]";
         }
@@ -583,12 +638,13 @@ static List initialize_search(
   }
 
   List best_run = results[best_index];
-  bool best_success = as<bool>(best_run["converged"]);
+  bool best_success = as<bool>(best_run["success"]);
   arma::vec best_argument = as<arma::vec>(best_run["argument"]);
   double best_value = as<double>(best_run["value"]);
   if (best_success && best_argument.is_finite() && std::isfinite(best_value)) {
     if (storage.unique(best_argument, controls.tolerance)) {
-      storage.append(best_argument, best_value);
+      arma::mat best_model = as<arma::mat>(best_run["model"]);
+      storage.append(best_argument, best_value, best_model);
     }
     return List::create(
       Named("success") = true,
@@ -611,7 +667,7 @@ static List initialize_search(
     10.0,
     controls.iterlim,
     minimize,
-    1e-6,
+    controls.gradient_tolerance,
     0.1,
     wrap(controls.par_lower),
     wrap(controls.par_upper)
@@ -619,12 +675,13 @@ static List initialize_search(
   bool extended_success = as<bool>(extended["converged"]);
   arma::vec ext_argument = as<arma::vec>(extended["argument"]);
   double ext_value = as<double>(extended["value"]);
+  arma::mat ext_model = as<arma::mat>(extended["model"]);
   if (extended_success && ext_argument.is_finite() && std::isfinite(ext_value)) {
     if (!quiet) {
       Rcpp::Rcout << " [found optimum]\n";
     }
     if (storage.unique(ext_argument, controls.tolerance)) {
-      storage.append(ext_argument, ext_value);
+      storage.append(ext_argument, ext_value, ext_model);
     }
     return List::create(
       Named("success") = true,
@@ -634,6 +691,13 @@ static List initialize_search(
 
   if (!quiet) {
     Rcpp::Rcout << " [failed]\n";
+  }
+
+  if (!storage.empty()) {
+    return List::create(
+      Named("success") = true,
+      Named("x_best") = wrap(storage.best_argument(minimize))
+    );
   }
 
   NumericVector missing_x(npar, NA_REAL);
@@ -660,11 +724,11 @@ SEXP vntrs_cpp(
     double inferior_tolerance,
     bool has_time_limit,
     double time_limit,
-    int cores,
     NumericVector lower,
     NumericVector upper,
     bool quiet,
-    bool collect_all_optima
+    bool collect_all_optima,
+    double gradient_tolerance
 ) {
 
   if (npar <= 0) {
@@ -685,10 +749,10 @@ SEXP vntrs_cpp(
     inferior_tolerance,
     has_time_limit,
     time_limit,
-    cores,
     lower,
     upper,
-    collect_all_optima
+    collect_all_optima,
+    gradient_tolerance
   );
   check_function(f, npar, controls);
 
@@ -706,6 +770,7 @@ SEXP vntrs_cpp(
     warning("No optima found.");
     return R_NilValue;
   }
+  double x_best_value = storage.best_value(minimize);
 
   if (!quiet) {
     Rcpp::Rcout << "Start VNTRS.\n";
@@ -721,7 +786,9 @@ SEXP vntrs_cpp(
       Rcpp::Rcout << "* Select neighborhood " << k << ".\n";
     }
     double expansion = std::pow(1.5, k - 1);
-    std::vector<arma::vec> neighbors = select_neighbors(f, x_best, expansion, controls);
+    std::vector<arma::vec> neighbors = select_neighbors(
+      x_best, expansion, controls, storage.best_model(minimize)
+    );
 
     for (std::size_t j = 0; j < neighbors.size(); ++j) {
       if (controls.has_time_limit) {
@@ -739,7 +806,9 @@ SEXP vntrs_cpp(
       }
 
       auto neighbor_start = std::chrono::steady_clock::now();
-      List local = run_local(f, neighbors[j], minimize, controls, storage, quiet);
+      List local = run_local(
+        f, neighbors[j], minimize, controls, storage, quiet, controls.iterlim
+      );
       auto neighbor_end = std::chrono::steady_clock::now();
       double duration = std::chrono::duration<double>(neighbor_end - neighbor_start).count();
       if (!quiet) {
@@ -766,7 +835,8 @@ SEXP vntrs_cpp(
           if (!quiet) {
             Rcpp::Rcout << " [optimum is unknown]";
           }
-          storage.append(arg_vec, value);
+          arma::mat local_model = as<arma::mat>(local["model"]);
+          storage.append(arg_vec, value, local_model);
         }
       }
       if (!quiet) {
@@ -778,13 +848,25 @@ SEXP vntrs_cpp(
       break;
     }
     arma::vec x_new = storage.best_argument(minimize);
+    double x_new_value = storage.best_value(minimize);
     arma::vec diff = x_new - x_best;
     double dist_sq = arma::dot(diff, diff);
-    if (!std::isfinite(dist_sq) || dist_sq > controls.tolerance * controls.tolerance) {
+    double value_tolerance = std::sqrt(DBL_EPSILON) * std::max(
+      1.0, std::max(std::fabs(x_best_value), std::fabs(x_new_value))
+    );
+    double improvement = minimize
+      ? x_best_value - x_new_value : x_new_value - x_best_value;
+    bool meaningfully_better = std::isfinite(improvement) &&
+      improvement > value_tolerance;
+    bool equivalent_new_optimum = std::isfinite(dist_sq) &&
+      std::fabs(x_new_value - x_best_value) <= value_tolerance &&
+      dist_sq > 1.0;
+    if (meaningfully_better || equivalent_new_optimum) {
       if (!quiet) {
         Rcpp::Rcout << "* Reset neighborhood, because better optimum was found.\n";
       }
       x_best = x_new;
+      x_best_value = x_new_value;
       k = 1;
     } else {
       ++k;

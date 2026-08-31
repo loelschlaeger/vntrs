@@ -93,34 +93,27 @@ vntrs::vntrs(
 #> Initialize VNTRS.
 #> * Apply local search at 5 random starting points.
 #> ** Run 1 [0 s] [found optimum] [optimum is unknown]
-#> ** Run 2 [0 s] [found optimum]
+#> ** Run 2 [0 s] [found optimum] [optimum is unknown]
 #> ** Run 3 [0 s] [found optimum]
 #> ** Run 4 [0 s] [found optimum]
 #> ** Run 5 [0 s] [found optimum]
 #> Start VNTRS.
 #> * Select neighborhood 1.
-#> ** Neighbor 1 [0 s]
-#> ** Neighbor 2 [0 s] [found optimum] [optimum is unknown]
-#> ** Neighbor 3 [0 s] [found optimum]
-#> ** Neighbor 4 [0 s]
-#> ** Neighbor 5 [0 s]
-#> * Reset neighborhood, because better optimum was found.
-#> * Select neighborhood 1.
-#> ** Neighbor 1 [0 s]
+#> ** Neighbor 1 [0 s] [found optimum]
 #> ** Neighbor 2 [0 s] [found optimum]
 #> ** Neighbor 3 [0 s] [found optimum]
 #> ** Neighbor 4 [0 s] [found optimum]
 #> ** Neighbor 5 [0 s] [found optimum]
 #> * Select neighborhood 2.
-#> ** Neighbor 1 [0 s] [found optimum]
-#> ** Neighbor 2 [0 s]
-#> ** Neighbor 3 [0 s]
+#> ** Neighbor 1 [0 s] [found optimum] [optimum is unknown]
+#> ** Neighbor 2 [0 s] [found optimum]
+#> ** Neighbor 3 [0 s] [found optimum]
 #> ** Neighbor 4 [0 s] [found optimum]
 #> ** Neighbor 5 [0 s] [found optimum]
 #> * Select neighborhood 3.
-#> ** Neighbor 1 [0 s] [found optimum] [optimum is unknown]
+#> ** Neighbor 1 [0 s] [found optimum]
 #> ** Neighbor 2 [0 s] [found optimum]
-#> ** Neighbor 3 [0 s] [found optimum] [optimum is unknown]
+#> ** Neighbor 3 [0 s] [found optimum]
 #> ** Neighbor 4 [0 s] [found optimum]
 #> ** Neighbor 5 [0 s] [found optimum]
 #> * Select neighborhood 4.
@@ -139,7 +132,6 @@ vntrs::vntrs(
 #>            p1         p2      value global
 #> 1  0.08984201 -0.7126564 -1.0316285   TRUE
 #> 2 -0.08984201  0.7126564 -1.0316285   TRUE
-#> 3 -1.70360672  0.7960836 -0.2154638  FALSE
-#> 4  1.60710475  0.5686515  2.1042503  FALSE
-#> 5  1.70360671 -0.7960836 -0.2154638  FALSE
+#> 3  1.70360671 -0.7960836 -0.2154638  FALSE
+#> 4 -1.70360671  0.7960836 -0.2154638  FALSE
 ```
