@@ -24,11 +24,16 @@ Useful links:
 **Maintainer**: Lennart Oelschläger <oelschlaeger.lennart@gmail.com>
 ([ORCID](https://orcid.org/0000-0001-5421-9313))
 
+Authors:
+
+- Lennart Oelschläger <oelschlaeger.lennart@gmail.com>
+  ([ORCID](https://orcid.org/0000-0001-5421-9313))
+
 ## Examples
 
 ``` r
 rosenbrock <- function(x) 100 * (x[2] - x[1]^2)^2 + (1 - x[1])^2
 vntrs(f = rosenbrock, npar = 2)
 #>   p1 p2        value global
-#> 1  1  1 5.916025e-20   TRUE
+#> 1  1  1 3.576855e-17   TRUE
 ```

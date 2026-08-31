@@ -1,6 +1,15 @@
 # Changelog
 
+## vntrs 0.2.2
+
+- Reworked missing-derivative handling.
+
+- Added damped-BFGS trust-region models and reuse of local curvature
+  across continued searches.
+
 ## vntrs 0.2.1
+
+CRAN release: 2026-05-07
 
 - Improved documentation.
 

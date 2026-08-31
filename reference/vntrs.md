@@ -20,11 +20,11 @@ vntrs(
   tolerance = 1e-06,
   inferior_tolerance = 1e-06,
   time_limit = NULL,
-  cores = 1L,
   lower = NULL,
   upper = NULL,
   collect_all = FALSE,
-  quiet = TRUE
+  quiet = TRUE,
+  gradient_tolerance = 1e-06
 )
 ```
 
@@ -105,11 +105,6 @@ vntrs(
   Optional time limit in seconds. If reached, the search stops early
   with a warning.
 
-- cores:
-
-  \[`integer(1)`\]  
-  Number of CPU cores used for parallel evaluation.
-
 - lower, upper:
 
   \[`numeric(npar)` \| `NULL`\]  
@@ -127,6 +122,11 @@ vntrs(
   \[`logical(1)`\]  
   If `TRUE`, suppress progress messages.
 
+- gradient_tolerance:
+
+  \[`numeric(1)`\]  
+  Positive first-order convergence tolerance for the projected gradient.
+
 ## Value
 
 A `data.frame` summarizing the identified optima or `NULL` if none could
@@ -143,5 +143,5 @@ Bierlaire et al. (2009) "A Heuristic for Nonlinear Global Optimization"
 rosenbrock <- function(x) 100 * (x[2] - x[1]^2)^2 + (1 - x[1])^2
 vntrs(f = rosenbrock, npar = 2)
 #>   p1 p2        value global
-#> 1  1  1 9.700733e-20   TRUE
+#> 1  1  1 1.805737e-16   TRUE
 ```
