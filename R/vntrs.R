@@ -44,7 +44,8 @@
 #' Maximum trust-region iterations during the main search.
 #'
 #' @param tolerance \[`numeric(1)`\]\cr
-#' Minimum Euclidean distance for two optima to be treated as distinct.
+#' Maximum relative parameter difference for two solutions to be treated as
+#' the same optimum.
 #'
 #' @param inferior_tolerance \[`numeric(1)`\]\cr
 #' Maximum objective-value gap from the best known solution before a local
@@ -90,7 +91,7 @@ vntrs <- function(
     neighbors = 5L,
     beta = 0.05,
     iterlim = 100L,
-    tolerance = 1e-6,
+    tolerance = 1e-3,
     inferior_tolerance = 1e-6,
     time_limit = NULL,
     lower = NULL,

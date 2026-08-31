@@ -157,6 +157,14 @@ static void check_function(Function f, int npar, const Controls& controls) {
   );
 }
 
+static bool same_point(const arma::vec& x, const arma::vec& y,
+                       double tolerance) {
+  arma::vec scale = arma::max(
+    arma::max(arma::abs(x), arma::abs(y)), arma::ones<arma::vec>(x.n_elem)
+  );
+  return arma::max(arma::abs(x - y) / scale) <= tolerance;
+}
+
 struct OptimaStorage {
   int npar;
   std::vector<arma::vec> arguments;
@@ -188,15 +196,8 @@ struct OptimaStorage {
     if (!argument.is_finite()) {
       return false;
     }
-    double tol_sq = tolerance * tolerance;
     for (std::size_t i = 0; i < arguments.size(); ++i) {
-      const arma::vec& current = arguments[i];
-      arma::vec diff = current - argument;
-      double dist_sq = arma::dot(diff, diff);
-      if (!std::isfinite(dist_sq)) {
-        dist_sq = std::numeric_limits<double>::infinity();
-      }
-      if (dist_sq < tol_sq) {
+      if (same_point(arguments[i], argument, tolerance)) {
         return false;
       }
     }
@@ -286,7 +287,7 @@ static bool should_interrupt(
       dist_sq = std::numeric_limits<double>::infinity();
     }
     near_known_optimum = near_known_optimum || dist_sq <= 1.0;
-    if (dist_sq <= optimum_tolerance * optimum_tolerance) {
+    if (same_point(storage.arguments[i], point, optimum_tolerance)) {
       if (!quiet) {
         Rcpp::Rcout << " [optimum already visited]";
       }

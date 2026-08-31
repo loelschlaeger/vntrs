@@ -16,7 +16,7 @@ vntrs(
   neighbors = 5L,
   beta = 0.05,
   iterlim = 100L,
-  tolerance = 1e-06,
+  tolerance = 0.001,
   inferior_tolerance = 1e-06,
   time_limit = NULL,
   lower = NULL,
@@ -65,7 +65,8 @@ Non-negative scaling factor for neighborhood expansion.}
 Maximum trust-region iterations during the main search.}
 
 \item{tolerance}{[\code{numeric(1)}]\cr
-Minimum Euclidean distance for two optima to be treated as distinct.}
+Maximum relative parameter difference for two solutions to be treated as
+the same optimum.}
 
 \item{inferior_tolerance}{[\code{numeric(1)}]\cr
 Maximum objective-value gap from the best known solution before a local
