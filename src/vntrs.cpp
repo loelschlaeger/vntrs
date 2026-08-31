@@ -674,7 +674,7 @@ static List initialize_search(
   }
 
   if (!quiet) {
-    Rcpp::Rcout << "* Continue the best run " << (best_index + 1) << ".\n";
+    Rcpp::Rcout << "* Continue the best run " << (best_index + 1) << ".";
   }
 
   arma::vec restart = best_argument;
