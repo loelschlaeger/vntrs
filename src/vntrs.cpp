@@ -135,7 +135,7 @@ static Controls create_controls(
   return cfg;
 }
 
-static void check_function(Function f, int npar, const Controls& controls) {
+static arma::vec initialization_center(int npar, const Controls& controls) {
   arma::vec point(npar);
   double midpoint = 0.5 * controls.init_min + 0.5 * controls.init_max;
   for (int i = 0; i < npar; ++i) {
@@ -147,6 +147,11 @@ static void check_function(Function f, int npar, const Controls& controls) {
       point(i) = std::min(point(i), controls.par_upper(i));
     }
   }
+  return point;
+}
+
+static void check_function(Function f, int npar, const Controls& controls) {
+  arma::vec point = initialization_center(npar, controls);
   vntrs::parse_objective(
     f, point, /*need_gradient=*/false, controls.par_lower, controls.par_upper
   );
@@ -555,6 +560,20 @@ static arma::vec generate_start(int npar, const Controls& controls) {
   return point;
 }
 
+static arma::vec repair_start(Function f, arma::vec point,
+                              const Controls& controls) {
+  arma::vec center = initialization_center(controls.npar, controls);
+  for (int attempt = 0; attempt < 32; ++attempt) {
+    vntrs::ObjectiveComponents value = vntrs::parse_objective(
+      f, point, /*need_gradient=*/false, controls.par_lower,
+      controls.par_upper, /*allow_nonfinite=*/true
+    );
+    if (std::isfinite(value.value)) return point;
+    point = 0.5 * (point + center);
+  }
+  return center;
+}
+
 static List initialize_search(
     Function f, int npar, bool minimize, const Controls& controls,
     OptimaStorage& storage, bool quiet
@@ -567,7 +586,9 @@ static List initialize_search(
   }
 
   for (int run = 0; run < controls.init_runs; ++run) {
-    arma::vec start = generate_start(npar, controls);
+    arma::vec start = repair_start(
+      f, generate_start(npar, controls), controls
+    );
     if (!quiet) {
       Rcpp::Rcout << "** Run " << (run + 1);
     }
@@ -658,29 +679,20 @@ static List initialize_search(
 
   arma::vec restart = best_argument;
   if (!restart.is_finite()) {
-    restart = generate_start(npar, controls);
+    restart = repair_start(f, generate_start(npar, controls), controls);
   }
-  List extended = trust_region_cpp(
-    f,
-    wrap(restart),
-    1.0,
-    10.0,
-    controls.iterlim,
-    minimize,
-    controls.gradient_tolerance,
-    0.1,
-    wrap(controls.par_lower),
-    wrap(controls.par_upper)
+  List extended = run_local(
+    f, restart, minimize, controls, storage, quiet, controls.iterlim
   );
-  bool extended_success = as<bool>(extended["converged"]);
+  bool extended_success = as<bool>(extended["success"]);
   arma::vec ext_argument = as<arma::vec>(extended["argument"]);
   double ext_value = as<double>(extended["value"]);
-  arma::mat ext_model = as<arma::mat>(extended["model"]);
   if (extended_success && ext_argument.is_finite() && std::isfinite(ext_value)) {
     if (!quiet) {
       Rcpp::Rcout << " [found optimum]\n";
     }
     if (storage.unique(ext_argument, controls.tolerance)) {
+      arma::mat ext_model = as<arma::mat>(extended["model"]);
       storage.append(ext_argument, ext_value, ext_model);
     }
     return List::create(
