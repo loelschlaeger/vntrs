@@ -17,7 +17,7 @@ vntrs(
   neighbors = 5L,
   beta = 0.05,
   iterlim = 100L,
-  tolerance = 1e-06,
+  tolerance = 0.001,
   inferior_tolerance = 1e-06,
   time_limit = NULL,
   lower = NULL,
@@ -91,7 +91,8 @@ vntrs(
 - tolerance:
 
   \[`numeric(1)`\]  
-  Minimum Euclidean distance for two optima to be treated as distinct.
+  Maximum relative parameter difference for two solutions to be treated
+  as the same optimum.
 
 - inferior_tolerance:
 
@@ -125,7 +126,7 @@ vntrs(
 - gradient_tolerance:
 
   \[`numeric(1)`\]  
-  Positive first-order convergence tolerance for the projected gradient.
+  Positive convergence tolerance for the scaled gradient.
 
 ## Value
 

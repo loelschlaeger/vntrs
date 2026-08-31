@@ -50,7 +50,7 @@
 <span>  neighbors <span class="op">=</span> <span class="fl">5L</span>,</span>
 <span>  beta <span class="op">=</span> <span class="fl">0.05</span>,</span>
 <span>  iterlim <span class="op">=</span> <span class="fl">100L</span>,</span>
-<span>  tolerance <span class="op">=</span> <span class="fl">1e-06</span>,</span>
+<span>  tolerance <span class="op">=</span> <span class="fl">0.001</span>,</span>
 <span>  inferior_tolerance <span class="op">=</span> <span class="fl">1e-06</span>,</span>
 <span>  time_limit <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  lower <span class="op">=</span> <span class="cn">NULL</span>,</span>
@@ -120,7 +120,8 @@ Maximum trust-region iterations during the main search.</p></dd>
 
 <dt id="arg-tolerance">tolerance<a class="anchor" aria-label="anchor" href="#arg-tolerance"></a></dt>
 <dd><p>[<code>numeric(1)</code>]<br>
-Minimum Euclidean distance for two optima to be treated as distinct.</p></dd>
+Maximum relative parameter difference for two solutions to be treated as
+the same optimum.</p></dd>
 
 
 <dt id="arg-inferior-tolerance">inferior_tolerance<a class="anchor" aria-label="anchor" href="#arg-inferior-tolerance"></a></dt>
@@ -154,7 +155,7 @@ If <code>TRUE</code>, suppress progress messages.</p></dd>
 
 <dt id="arg-gradient-tolerance">gradient_tolerance<a class="anchor" aria-label="anchor" href="#arg-gradient-tolerance"></a></dt>
 <dd><p>[<code>numeric(1)</code>]<br>
-Positive first-order convergence tolerance for the projected gradient.</p></dd>
+Positive convergence tolerance for the scaled gradient.</p></dd>
 
 </dl></div>
     <div class="section level2">
