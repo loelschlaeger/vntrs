@@ -920,14 +920,29 @@ SEXP vntrs_cpp(
   }
 
   std::size_t n_opt = storage.size();
+  std::vector<std::size_t> order(n_opt);
+  for (std::size_t i = 0; i < n_opt; ++i) {
+    order[i] = i;
+  }
+  std::stable_sort(
+    order.begin(),
+    order.end(),
+    [&storage, minimize](std::size_t left, std::size_t right) {
+      return minimize
+        ? storage.values[left] < storage.values[right]
+        : storage.values[left] > storage.values[right];
+    }
+  );
+
   NumericMatrix args(n_opt, npar);
   NumericVector values(n_opt);
   for (std::size_t i = 0; i < n_opt; ++i) {
-    arma::vec arg = storage.arguments[i];
+    std::size_t source = order[i];
+    arma::vec arg = storage.arguments[source];
     for (int j = 0; j < npar; ++j) {
       args(i, j) = arg(j);
     }
-    values[i] = storage.values[i];
+    values[i] = storage.values[source];
   }
 
   double tol_value = std::sqrt(DBL_EPSILON) * std::max(1.0, std::fabs(best_value));

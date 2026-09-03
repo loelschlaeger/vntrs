@@ -18,6 +18,8 @@
 
 * Improved initialization when the objective is non-finite at a randomly
   generated starting point.
+  
+* Now sorts returned optima from best to worst by objective value.
 
 # vntrs 0.2.2
   

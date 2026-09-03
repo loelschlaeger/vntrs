@@ -191,8 +191,8 @@
 #' If \code{TRUE}, suppress progress messages. Warnings are still emitted.
 #'
 #' @return
-#' A \code{data.frame} summarizing the identified optima or \code{NULL} if none
-#' could be determined.
+#' A \code{data.frame} summarizing the identified optima, ordered from best to
+#' worst by objective value, or \code{NULL} if none could be determined.
 #'
 #' @export
 #'

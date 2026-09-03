@@ -205,8 +205,8 @@ and the elapsed time may exceed the limit.}
 If \code{TRUE}, suppress progress messages. Warnings are still emitted.}
 }
 \value{
-A \code{data.frame} summarizing the identified optima or \code{NULL} if none
-could be determined.
+A \code{data.frame} summarizing the identified optima, ordered from best to
+worst by objective value, or \code{NULL} if none could be determined.
 }
 \description{
 Run the variable neighborhood trust region search algorithm. Features:
