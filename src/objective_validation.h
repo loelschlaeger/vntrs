@@ -197,8 +197,8 @@ inline arma::mat approximate_hessian_from_gradient(
 
 inline arma::mat approximate_hessian_from_values(
     Rcpp::Function f, const arma::vec& x, double value,
+    const arma::vec& gradient,
     const arma::vec& lower, const arma::vec& upper) {
-  arma::vec gradient = approximate_gradient(f, x, value, lower, upper);
   arma::vec steps = finite_difference_steps(x, 0.25, value);
   arma::mat hessian(x.n_elem, x.n_elem, arma::fill::zeros);
   auto evaluate = [&](const arma::vec& point) {

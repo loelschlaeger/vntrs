@@ -409,7 +409,7 @@ List trust_region_cpp(
     }
 
     vntrs::ObjectiveComponents next = vntrs::parse_objective(
-      objfun, candidate, /*need_gradient=*/true, lower_vec, upper_vec,
+      objfun, candidate, /*need_gradient=*/false, lower_vec, upper_vec,
       /*allow_nonfinite=*/true
     );
     if (!std::isfinite(next.value)) {
@@ -434,6 +434,14 @@ List trust_region_cpp(
     }
 
     if (rho > eta) {
+      if (!next.gradient_supplied) {
+        next.gradient = vntrs::approximate_gradient(
+          objfun, candidate, next.value, lower_vec, upper_vec
+        );
+      }
+      if (!next.gradient.is_finite()) {
+        stop("Function 'f' must return finite gradient values.");
+      }
       arma::vec gradient_new = direction * next.gradient;
       if (next.hessian_supplied) {
         exact_hessian = true;
@@ -539,7 +547,7 @@ List trust_region_cpp(
   if (converged && !components.gradient_supplied && !exact_hessian) {
     arma::mat numerical_curvature = direction *
       vntrs::approximate_hessian_from_values(
-        objfun, x, value, lower_vec, upper_vec
+        objfun, x, value, gradient_original, lower_vec, upper_vec
       );
     if (!second_order_satisfied(
           numerical_curvature, gradient, x, lower_vec, upper_vec)) {

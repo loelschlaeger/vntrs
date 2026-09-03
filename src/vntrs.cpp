@@ -268,15 +268,14 @@ struct OptimaStorage {
 };
 
 static bool should_interrupt(
-   Function f,
    const arma::vec& point,
+   double value,
+   const arma::vec& gradient,
    const OptimaStorage& storage,
    bool minimize,
    double inferior_tolerance,
    double interruption_gradient_tolerance,
    double optimum_tolerance,
-   const arma::vec& lower,
-   const arma::vec& upper,
    bool quiet,
    bool collect_all_optima
 ) {
@@ -309,14 +308,6 @@ static bool should_interrupt(
   }
   if (collect_all_optima) return false;
 
-  vntrs::ObjectiveComponents eval = vntrs::parse_objective(
-    f,
-    point,
-    /*need_gradient=*/true,
-    lower,
-    upper);
-  arma::vec gradient = eval.gradient;
-  double value = eval.value;
   if (!gradient.is_finite() || !std::isfinite(value)) {
     return false;
   }
@@ -452,9 +443,10 @@ static List run_local(
       break;
     }
     if (should_interrupt(
-          f, current, storage, minimize, controls.inferior_tolerance,
+          current, as<double>(last["value"]),
+          as<arma::vec>(last["gradient"]), storage, minimize,
+          controls.inferior_tolerance,
           controls.interruption_gradient_tolerance, controls.tolerance,
-          controls.par_lower, controls.par_upper,
           quiet, controls.collect_all_optima)) {
       NumericVector arg_out(storage.npar, NA_REAL);
       return List::create(

@@ -21,6 +21,8 @@
   
 * Now sorts returned optima from best to worst by objective value.
 
+* Reduced objective-function evaluations by delaying numerical gradients until
+  a trial step is accepted and by reusing available values and gradients.
 # vntrs 0.2.2
   
 * Replaced the absolute gradient convergence check with a scaled gradient
