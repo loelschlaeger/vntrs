@@ -81,6 +81,7 @@ call_vntrs_cpp <- function(
     iterlim = 5,
     tolerance = 1e-6,
     inferior_tolerance = 1e-6,
+    interruption_gradient_tolerance = 1e-3,
     has_time_limit = FALSE,
     time_limit = 0,
     lower = rep(-Inf, npar),
@@ -103,6 +104,7 @@ call_vntrs_cpp <- function(
     iterlim = as.integer(iterlim),
     tolerance = tolerance,
     inferior_tolerance = inferior_tolerance,
+    interruption_gradient_tolerance = interruption_gradient_tolerance,
     has_time_limit = has_time_limit,
     time_limit = time_limit,
     lower = as.numeric(lower),
@@ -125,8 +127,9 @@ valid_vntrs_args <- function() {
     neighbors = 1,
     beta = 0,
     iterlim = 1,
-    tolerance = 1e-6,
+    identical_tolerance = 1e-6,
     inferior_tolerance = 1e-6,
+    interruption_gradient_tolerance = 1e-3,
     quiet = TRUE
   )
 }
@@ -169,6 +172,33 @@ test_that("vntrs marks global optimum", {
   expect_true(res$global[best_idx])
 })
 
+test_that("documented examples return the expected optima", {
+  set.seed(1)
+  rosenbrock <- function(x) 100 * (x[2] - x[1]^2)^2 + (1 - x[1])^2
+  rosenbrock_result <- vntrs(f = rosenbrock, npar = 2)
+
+  expect_equal(nrow(rosenbrock_result), 1L)
+  expect_equal(sum(rosenbrock_result$global), 1L)
+
+  set.seed(1)
+  camel <- function(x) {
+    (4 - 2.1 * x[1]^2 + x[1]^4 / 3) * x[1]^2 +
+      x[1] * x[2] + (-4 + 4 * x[2]^2) * x[2]^2
+  }
+  camel_result <- vntrs(
+    f = camel,
+    npar = 2,
+    lower = c(-3, -2),
+    upper = c(3, 2),
+    collect_all = TRUE,
+    neighborhoods = 10
+  )
+
+  expect_equal(nrow(camel_result), 6L)
+  expect_equal(sum(camel_result$global), 2L)
+  expect_equal(sum(!camel_result$global), 4L)
+})
+
 test_that("vntrs finds minima and maxima", {
   set.seed(1)
   res_min <- vntrs(
@@ -177,11 +207,10 @@ test_that("vntrs finds minima and maxima", {
     init_runs = 1,
     init_min = -1,
     init_max = 1,
-    init_iterlim = 5,
     neighborhoods = 1,
     neighbors = 1,
     iterlim = 10,
-    tolerance = 1e-6,
+    identical_tolerance = 1e-6,
     quiet = TRUE
   )
   expect_s3_class(res_min, "data.frame")
@@ -193,11 +222,10 @@ test_that("vntrs finds minima and maxima", {
     init_runs = 1,
     init_min = -1,
     init_max = 1,
-    init_iterlim = 5,
     neighborhoods = 1,
     neighbors = 1,
     iterlim = 10,
-    tolerance = 1e-6,
+    identical_tolerance = 1e-6,
     minimize = FALSE,
     quiet = TRUE
   )
@@ -244,12 +272,11 @@ test_that("vntrs can retain all local optima", {
     init_runs = 1,
     init_min = 0,
     init_max = 0,
-    init_iterlim = 5,
     neighborhoods = 6,
     neighbors = 4,
     beta = 0.1,
     iterlim = 4,
-    tolerance = 1e-6,
+    identical_tolerance = 1e-6,
     inferior_tolerance = 1e-6,
     quiet = TRUE
   )
@@ -333,8 +360,9 @@ test_that("vntrs validates public arguments", {
   expect_vntrs_error(neighbors = 0)
   expect_vntrs_error(beta = -1)
   expect_vntrs_error(iterlim = 0)
-  expect_vntrs_error(tolerance = -1)
+  expect_vntrs_error(identical_tolerance = -1)
   expect_vntrs_error(inferior_tolerance = -1)
+  expect_vntrs_error(interruption_gradient_tolerance = -1)
   expect_vntrs_error(gradient_tolerance = 0)
   expect_vntrs_error(time_limit = -1)
   expect_vntrs_error(time_limit = 0)

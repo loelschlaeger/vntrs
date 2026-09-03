@@ -5,7 +5,7 @@ trust_region_cpp <- function(objfun, parinit, rinit, rmax, iterlim, minimize, to
     .Call(`_vntrs_trust_region_cpp`, objfun, parinit, rinit, rmax, iterlim, minimize, tol, eta, lower, upper, initial_model, initial_delta)
 }
 
-vntrs_cpp <- function(f, npar, minimize, init_runs, init_min, init_max, init_iterlim, neighborhoods, neighbors, beta, iterlim, tolerance, inferior_tolerance, has_time_limit, time_limit, lower, upper, quiet, collect_all_optima, gradient_tolerance) {
-    .Call(`_vntrs_vntrs_cpp`, f, npar, minimize, init_runs, init_min, init_max, init_iterlim, neighborhoods, neighbors, beta, iterlim, tolerance, inferior_tolerance, has_time_limit, time_limit, lower, upper, quiet, collect_all_optima, gradient_tolerance)
+vntrs_cpp <- function(f, npar, minimize, init_runs, init_min, init_max, init_iterlim, neighborhoods, neighbors, beta, iterlim, tolerance, inferior_tolerance, interruption_gradient_tolerance, has_time_limit, time_limit, lower, upper, quiet, collect_all_optima, gradient_tolerance) {
+    .Call(`_vntrs_vntrs_cpp`, f, npar, minimize, init_runs, init_min, init_max, init_iterlim, neighborhoods, neighbors, beta, iterlim, tolerance, inferior_tolerance, interruption_gradient_tolerance, has_time_limit, time_limit, lower, upper, quiet, collect_all_optima, gradient_tolerance)
 }
 

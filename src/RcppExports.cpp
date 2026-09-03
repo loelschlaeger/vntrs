@@ -34,8 +34,8 @@ BEGIN_RCPP
 END_RCPP
 }
 // vntrs_cpp
-SEXP vntrs_cpp(Function f, int npar, bool minimize, int init_runs, double init_min, double init_max, int init_iterlim, int neighborhoods, int neighbors, double beta, int iterlim, double tolerance, double inferior_tolerance, bool has_time_limit, double time_limit, NumericVector lower, NumericVector upper, bool quiet, bool collect_all_optima, double gradient_tolerance);
-RcppExport SEXP _vntrs_vntrs_cpp(SEXP fSEXP, SEXP nparSEXP, SEXP minimizeSEXP, SEXP init_runsSEXP, SEXP init_minSEXP, SEXP init_maxSEXP, SEXP init_iterlimSEXP, SEXP neighborhoodsSEXP, SEXP neighborsSEXP, SEXP betaSEXP, SEXP iterlimSEXP, SEXP toleranceSEXP, SEXP inferior_toleranceSEXP, SEXP has_time_limitSEXP, SEXP time_limitSEXP, SEXP lowerSEXP, SEXP upperSEXP, SEXP quietSEXP, SEXP collect_all_optimaSEXP, SEXP gradient_toleranceSEXP) {
+SEXP vntrs_cpp(Function f, int npar, bool minimize, int init_runs, double init_min, double init_max, int init_iterlim, int neighborhoods, int neighbors, double beta, int iterlim, double tolerance, double inferior_tolerance, double interruption_gradient_tolerance, bool has_time_limit, double time_limit, NumericVector lower, NumericVector upper, bool quiet, bool collect_all_optima, double gradient_tolerance);
+RcppExport SEXP _vntrs_vntrs_cpp(SEXP fSEXP, SEXP nparSEXP, SEXP minimizeSEXP, SEXP init_runsSEXP, SEXP init_minSEXP, SEXP init_maxSEXP, SEXP init_iterlimSEXP, SEXP neighborhoodsSEXP, SEXP neighborsSEXP, SEXP betaSEXP, SEXP iterlimSEXP, SEXP toleranceSEXP, SEXP inferior_toleranceSEXP, SEXP interruption_gradient_toleranceSEXP, SEXP has_time_limitSEXP, SEXP time_limitSEXP, SEXP lowerSEXP, SEXP upperSEXP, SEXP quietSEXP, SEXP collect_all_optimaSEXP, SEXP gradient_toleranceSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -52,6 +52,7 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< int >::type iterlim(iterlimSEXP);
     Rcpp::traits::input_parameter< double >::type tolerance(toleranceSEXP);
     Rcpp::traits::input_parameter< double >::type inferior_tolerance(inferior_toleranceSEXP);
+    Rcpp::traits::input_parameter< double >::type interruption_gradient_tolerance(interruption_gradient_toleranceSEXP);
     Rcpp::traits::input_parameter< bool >::type has_time_limit(has_time_limitSEXP);
     Rcpp::traits::input_parameter< double >::type time_limit(time_limitSEXP);
     Rcpp::traits::input_parameter< NumericVector >::type lower(lowerSEXP);
@@ -59,14 +60,14 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< bool >::type quiet(quietSEXP);
     Rcpp::traits::input_parameter< bool >::type collect_all_optima(collect_all_optimaSEXP);
     Rcpp::traits::input_parameter< double >::type gradient_tolerance(gradient_toleranceSEXP);
-    rcpp_result_gen = Rcpp::wrap(vntrs_cpp(f, npar, minimize, init_runs, init_min, init_max, init_iterlim, neighborhoods, neighbors, beta, iterlim, tolerance, inferior_tolerance, has_time_limit, time_limit, lower, upper, quiet, collect_all_optima, gradient_tolerance));
+    rcpp_result_gen = Rcpp::wrap(vntrs_cpp(f, npar, minimize, init_runs, init_min, init_max, init_iterlim, neighborhoods, neighbors, beta, iterlim, tolerance, inferior_tolerance, interruption_gradient_tolerance, has_time_limit, time_limit, lower, upper, quiet, collect_all_optima, gradient_tolerance));
     return rcpp_result_gen;
 END_RCPP
 }
 
 static const R_CallMethodDef CallEntries[] = {
     {"_vntrs_trust_region_cpp", (DL_FUNC) &_vntrs_trust_region_cpp, 12},
-    {"_vntrs_vntrs_cpp", (DL_FUNC) &_vntrs_vntrs_cpp, 20},
+    {"_vntrs_vntrs_cpp", (DL_FUNC) &_vntrs_vntrs_cpp, 21},
     {NULL, NULL, 0}
 };
 

@@ -7,11 +7,25 @@
 \description{
 \if{html}{\figure{logo.png}{options: style='float: right' alt='logo' width='120'}}
 
-Implements the variable neighborhood trust region search (VNTRS) algorithm for nonlinear global optimization, following Bierlaire et al. (2009) "A Heuristic for Nonlinear Global Optimization" \doi{10.1287/ijoc.1090.0343}. The method combines neighborhood exploration with a trust-region framework to search the solution space efficiently. It can terminate a local search early when the iterates converge toward a previously visited local optimum or when further improvement within the current region is unlikely. The algorithm can also be used to identify multiple local optima.
+Implements a variable neighborhood trust region search (VNTRS) algorithm for nonlinear global optimization, based on Bierlaire et al. (2009) "A Heuristic for Nonlinear Global Optimization" \doi{10.1287/ijoc.1090.0343}. The method combines neighborhood exploration with a trust-region framework to search the solution space efficiently. It can terminate a local search early when the iterates converge toward a previously visited local optimum or when further improvement within the current region is unlikely. The algorithm can also be used to identify multiple local optima.
 }
 \examples{
+### Example 1: Rosenbrock function; one global minimum; no local minima
+set.seed(1)
 rosenbrock <- function(x) 100 * (x[2] - x[1]^2)^2 + (1 - x[1])^2
 vntrs(f = rosenbrock, npar = 2)
+
+### Example 2: Six-hump camel function; two global minima; four local minima
+set.seed(1)
+camel <- function(x) {
+  (4 - 2.1*x[1]^2 + x[1]^4/3) * x[1]^2 + x[1]*x[2] + (-4 + 4*x[2]^2) * x[2]^2
+}
+vntrs(
+  f = camel, npar = 2,
+  lower = c(-3, -2), upper = c(3, 2), # search bounds
+  collect_all = TRUE,                 # also collect local optima
+  neighborhoods = 10                  # number of neighborhoods
+)
 }
 \seealso{
 Useful links:

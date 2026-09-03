@@ -24,6 +24,7 @@ struct Controls {
   int iterlim;
   double tolerance;
   double inferior_tolerance;
+  double interruption_gradient_tolerance;
   double gradient_tolerance;
   bool has_time_limit;
   double time_limit;
@@ -44,6 +45,7 @@ static Controls create_controls(
     int iterlim,
     double tolerance,
     double inferior_tolerance,
+    double interruption_gradient_tolerance,
     bool has_time_limit,
     double time_limit,
     NumericVector par_lower_vec,
@@ -77,6 +79,10 @@ static Controls create_controls(
   }
   if (!R_finite(inferior_tolerance) || inferior_tolerance < 0.0) {
     stop("'inferior_tolerance' must be finite and greater than or equal to zero.");
+  }
+  if (!R_finite(interruption_gradient_tolerance) ||
+      interruption_gradient_tolerance < 0.0) {
+    stop("'interruption_gradient_tolerance' must be finite and greater than or equal to zero.");
   }
   if (!R_finite(gradient_tolerance) || gradient_tolerance <= 0.0) {
     stop("'gradient_tolerance' must be finite and positive.");
@@ -125,6 +131,7 @@ static Controls create_controls(
   cfg.iterlim = iterlim;
   cfg.tolerance = tolerance;
   cfg.inferior_tolerance = inferior_tolerance;
+  cfg.interruption_gradient_tolerance = interruption_gradient_tolerance;
   cfg.gradient_tolerance = gradient_tolerance;
   cfg.has_time_limit = has_time_limit;
   cfg.time_limit = time_limit;
@@ -137,14 +144,19 @@ static Controls create_controls(
 
 static arma::vec initialization_center(int npar, const Controls& controls) {
   arma::vec point(npar);
-  double midpoint = 0.5 * controls.init_min + 0.5 * controls.init_max;
   for (int i = 0; i < npar; ++i) {
-    point(i) = midpoint;
-    if (std::isfinite(controls.par_lower(i))) {
-      point(i) = std::max(point(i), controls.par_lower(i));
-    }
-    if (std::isfinite(controls.par_upper(i))) {
-      point(i) = std::min(point(i), controls.par_upper(i));
+    double low = controls.par_lower(i);
+    double upp = controls.par_upper(i);
+    if (std::isfinite(low) && std::isfinite(upp)) {
+      point(i) = 0.5 * low + 0.5 * upp;
+    } else {
+      point(i) = 0.5 * controls.init_min + 0.5 * controls.init_max;
+      if (std::isfinite(low)) {
+        point(i) = std::max(point(i), low);
+      }
+      if (std::isfinite(upp)) {
+        point(i) = std::min(point(i), upp);
+      }
     }
   }
   return point;
@@ -261,6 +273,7 @@ static bool should_interrupt(
    const OptimaStorage& storage,
    bool minimize,
    double inferior_tolerance,
+   double interruption_gradient_tolerance,
    double optimum_tolerance,
    const arma::vec& lower,
    const arma::vec& upper,
@@ -309,7 +322,7 @@ static bool should_interrupt(
   }
 
   double grad_norm_sq = arma::dot(gradient, gradient);
-  if (grad_norm_sq <= std::pow(1e-3, 2)) {
+  if (grad_norm_sq <= std::pow(interruption_gradient_tolerance, 2)) {
     bool no_meaningful_improvement = minimize
       ? value >= best_value - inferior_tolerance
       : value <= best_value + inferior_tolerance;
@@ -440,7 +453,7 @@ static List run_local(
     }
     if (should_interrupt(
           f, current, storage, minimize, controls.inferior_tolerance,
-          controls.tolerance,
+          controls.interruption_gradient_tolerance, controls.tolerance,
           controls.par_lower, controls.par_upper,
           quiet, controls.collect_all_optima)) {
       NumericVector arg_out(storage.npar, NA_REAL);
@@ -494,7 +507,7 @@ static std::vector<arma::vec> select_neighbors(
     eigvec.eye(controls.npar, controls.npar);
   }
 
-  arma::vec scaled = controls.beta * arma::abs(eigval) / expansion;
+  arma::vec scaled = controls.beta * eigval / expansion;
   if (!scaled.is_finite()) {
     scaled.zeros();
   } else {
@@ -549,12 +562,19 @@ static std::vector<arma::vec> select_neighbors(
 static arma::vec generate_start(int npar, const Controls& controls) {
   arma::vec point(npar);
   for (int i = 0; i < npar; ++i) {
-    double value = R::runif(controls.init_min, controls.init_max);
-    if (std::isfinite(controls.par_lower(i)) && value < controls.par_lower(i)) {
-      value = controls.par_lower(i);
-    }
-    if (std::isfinite(controls.par_upper(i)) && value > controls.par_upper(i)) {
-      value = controls.par_upper(i);
+    double low = controls.par_lower(i);
+    double upp = controls.par_upper(i);
+    double value;
+    if (std::isfinite(low) && std::isfinite(upp)) {
+      value = R::runif(low, upp);
+    } else {
+      value = R::runif(controls.init_min, controls.init_max);
+      if (std::isfinite(low) && value < low) {
+        value = low;
+      }
+      if (std::isfinite(upp) && value > upp) {
+        value = upp;
+      }
     }
     point(i) = value;
   }
@@ -735,6 +755,7 @@ SEXP vntrs_cpp(
     int iterlim,
     double tolerance,
     double inferior_tolerance,
+    double interruption_gradient_tolerance,
     bool has_time_limit,
     double time_limit,
     NumericVector lower,
@@ -760,6 +781,7 @@ SEXP vntrs_cpp(
     iterlim,
     tolerance,
     inferior_tolerance,
+    interruption_gradient_tolerance,
     has_time_limit,
     time_limit,
     lower,
