@@ -9,3 +9,4 @@ LICENSE
 ^CRAN-SUBMISSION$
 ^cran-comments\.md$
 ^README\.Rmd$
+^make_sticker\.R$
