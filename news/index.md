@@ -1,6 +1,34 @@
 # Changelog
 
-## vntrs 0.2.2
+## vntrs 0.3.0
+
+- Reorganized optional arguments of
+  [`vntrs()`](https://loelschlaeger.de/vntrs/reference/vntrs.md).
+
+- Renamed argument `tolerance` to `identical_tolerance` to clarify that
+  it identifies identical optima.
+
+- Made duplicate-optimum detection scale-free by comparing relative
+  component-wise parameter differences.
+
+- Added `interruption_gradient_tolerance` to control the gradient-norm
+  threshold used by premature interruption.
+
+- Now samples initialization points across finite parameter bounds.
+  `init_min` and `init_max` remain the fallback for parameters without
+  finite bounds.
+
+- Expanded the parameter documentation with explanations and recommended
+  values.
+
+- Improved initialization when the objective is non-finite at a randomly
+  generated starting point.
+
+- Now sorts returned optima from best to worst by objective value.
+
+- Reduced objective-function evaluations by delaying numerical gradients
+  until a trial step is accepted and by reusing available values and
+  gradients. \# vntrs 0.2.2
 
 - Replaced the absolute gradient convergence check with a scaled
   gradient criterion.

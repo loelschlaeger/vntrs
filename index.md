@@ -1,14 +1,25 @@
 # vntrs
 
-This R package implements the variable neighborhood trust region search
-(VNTRS) algorithm for nonlinear global optimization, following Bierlaire
-et al. (2009) “A Heuristic for Nonlinear Global Optimization”. The
-method combines neighborhood exploration with a trust-region framework
-to search the solution space efficiently. It can terminate a local
-search early when the iterates converge toward a previously visited
-local optimum or when further improvement within the current region is
-unlikely. The algorithm can also be used to identify multiple local
-optima.
+This R package implements a variable neighborhood trust region search
+(VNTRS) algorithm for nonlinear global optimization, based on Bierlaire
+et al. (2009) “A Heuristic for Nonlinear Global Optimization”.
+
+The method combines neighborhood exploration with a trust-region
+framework to search the solution space efficiently. It can terminate a
+local search early when the iterates converge toward a previously
+visited local optimum or when further improvement within the current
+region is unlikely. The algorithm can also be used to identify multiple
+local optima.
+
+The package implementation differs in some aspects from Bierlaire et
+al. (2009) as follows:
+
+| Aspect | Bierlaire et al. (2009) | `vntrs` | Rationale |
+|:---|:---|:---|:---|
+| Local search | Unconstrained trust-region method | Optionally constrained trust-region method, using damped BFGS when no analytical Hessian is supplied | Allows for parameter bounds, improves numerical stability |
+| Convergence check | Based on absolute gradient norm | Based on relative gradient norm | Less dependence on parameter scales |
+| Previously visited optimum | Stops if the Euclidean distance to a visited optimum is at most $`1`$ | Stops based on a relative, component-wise comparison | Less dependence on parameter scales |
+| Armijo-like interruption | Stops when the objective improvement fails an Armijo-like test | Not used | Limited additional value |
 
 ## Installation
 
@@ -23,104 +34,50 @@ install.packages("vntrs")
 ## How to get started
 
 1.  Specify a function `f` that computes the objective value. It may
-    also return the gradient and Hessian. Return either a numeric value
-    or a named list with `value`, `gradient`, and `hessian` components.
-    Omitted derivatives are approximated by finite differences.
+    also return the gradient and Hessian. Omitted derivatives are
+    approximated by finite differences.
 
 2.  Call `vntrs::vntrs(f = f, npar = npar, minimize = minimize)`, where
 
-- `npar` is the number of parameters of `f` and
+    - `npar` is the number of parameters of `f` and
 
-- `minimize` determines whether `f` should be minimized
-  (`minimize = TRUE`, the default) or maximized (`minimize = FALSE`).
+    - `minimize` determines whether `f` should be minimized
+      (`minimize = TRUE`, the default) or maximized
+      (`minimize = FALSE`).
 
-Optionally, the algorithm can be tuned by setting dedicated control
-arguments (for example `init_runs` or `neighbors`, see
+Optionally, the algorithm can be tuned by setting control arguments, see
 [`help("vntrs")`](https://loelschlaeger.de/vntrs/reference/vntrs.md) for
-details).
+details.
 
 ## Example
 
-The example below minimizes the well-known [six-hump camel
-function](https://www.sfu.ca/~ssurjano/camel6.html), which has two
-global minima.
+The example below minimizes the [six-hump camel
+function](https://www.sfu.ca/~ssurjano/camel6.html) over
+$`[-3, 3] \times [-2, 2]`$. On this domain, the function has two global
+minima and four additional local minima.
 
 ``` r
 
+library(vntrs)
 set.seed(1)
-
 camel <- function(x) {
-  x1 <- x[1]
-  x2 <- x[2]
-  value <- (4 - 2.1 * x1^2 + x1^4 / 3) * x1^2 + x1 * x2 + (-4 + 4 * x2^2) * x2^2
-  gradient <- c(
-    8 * x1 - 8.4 * x1^3 + 2 * x1^5 + x2,
-    x1 - 8 * x2 + 16 * x2^3
-  )
-  hessian <- matrix(
-    c(
-      8 - 25.2 * x1^2 + 10 * x1^4, 1,
-      1, -8 + 48 * x2^2
-    ),
-    nrow = 2,
-    byrow = TRUE
-  )
-  list(value = value, gradient = gradient, hessian = hessian)
+  (4 - 2.1 * x[1]^2 + x[1]^4 / 3) * x[1]^2 + x[1] * x[2] + (-4 + 4 * x[2]^2) * x[2]^2
 }
-
-vntrs::vntrs(
-  f = camel,           # objective supplies value, gradient, Hessian
-  npar = 2,            # two variables (x1 and x2)
-  init_runs = 5,       # start from 5 random points
-  neighborhoods = 5,   # try 5 neighborhood radii per trust region
-  neighbors = 5,       # evaluate 5 trial points per neighborhood
-  lower = c(-3, -2),   # lower search bounds for x1 and x2
-  upper = c(3, 2),     # upper search bounds for x1 and x2
-  collect_all = TRUE,  # also look for local optima
-  quiet = FALSE        # show status messages
+optima <- vntrs(
+  f = camel, npar = 2,
+  lower = c(-3, -2), upper = c(3, 2), # search bounds
+  collect_all = TRUE,                 # also collect local optima
+  neighborhoods = 10                  # number of neighborhoods
 )
-#> Initialize VNTRS.
-#> * Apply local search at 5 random starting points.
-#> ** Run 1 [0 s] [found optimum] [optimum is unknown]
-#> ** Run 2 [0 s] [found optimum] [optimum is unknown]
-#> ** Run 3 [0 s] [found optimum]
-#> ** Run 4 [0 s] [found optimum]
-#> ** Run 5 [0 s] [found optimum]
-#> Start VNTRS.
-#> * Select neighborhood 1.
-#> ** Neighbor 1 [0 s] [found optimum]
-#> ** Neighbor 2 [0 s] [found optimum]
-#> ** Neighbor 3 [0 s] [found optimum]
-#> ** Neighbor 4 [0 s] [found optimum]
-#> ** Neighbor 5 [0 s] [found optimum]
-#> * Select neighborhood 2.
-#> ** Neighbor 1 [0 s] [found optimum] [optimum is unknown]
-#> ** Neighbor 2 [0 s] [found optimum]
-#> ** Neighbor 3 [0 s] [found optimum]
-#> ** Neighbor 4 [0 s] [found optimum]
-#> ** Neighbor 5 [0 s] [found optimum]
-#> * Select neighborhood 3.
-#> ** Neighbor 1 [0 s] [found optimum]
-#> ** Neighbor 2 [0 s] [found optimum]
-#> ** Neighbor 3 [0 s] [found optimum]
-#> ** Neighbor 4 [0 s] [found optimum]
-#> ** Neighbor 5 [0 s] [found optimum]
-#> * Select neighborhood 4.
-#> ** Neighbor 1 [0 s] [found optimum]
-#> ** Neighbor 2 [0 s] [found optimum]
-#> ** Neighbor 3 [0 s] [found optimum]
-#> ** Neighbor 4 [0 s] [found optimum]
-#> ** Neighbor 5 [0 s] [found optimum]
-#> * Select neighborhood 5.
-#> ** Neighbor 1 [0 s] [found optimum] [optimum is unknown]
-#> ** Neighbor 2 [0 s] [found optimum]
-#> ** Neighbor 3 [0 s] [found optimum]
-#> ** Neighbor 4 [0 s] [found optimum]
-#> ** Neighbor 5 [0 s] [found optimum]
-#> Done.
+optima
 #>            p1         p2      value global
-#> 1  0.08984201 -0.7126564 -1.0316285   TRUE
-#> 2 -0.08984201  0.7126564 -1.0316285   TRUE
-#> 3  1.70360671 -0.7960836 -0.2154638  FALSE
-#> 4 -1.70360671  0.7960836 -0.2154638  FALSE
+#> 1 -0.08984203  0.7126564 -1.0316285   TRUE
+#> 2  0.08984201 -0.7126564 -1.0316285   TRUE
+#> 3  1.70360672 -0.7960836 -0.2154638  FALSE
+#> 4 -1.70360674  0.7960836 -0.2154638  FALSE
+#> 5 -1.60710473 -0.5686515  2.1042503  FALSE
+#> 6  1.60710475  0.5686517  2.1042503  FALSE
 ```
+
+![Contour plot of the six-hump camel function with two global and four
+local minima](reference/figures/README-camel-contour-1.png)

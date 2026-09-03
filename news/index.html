@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">vntrs</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.2.2</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.3.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -32,8 +32,17 @@
     </div>
 
     <div class="section level2">
-<h2 class="pkg-version" data-toc-text="0.2.2" id="vntrs-022">vntrs 0.2.2<a class="anchor" aria-label="anchor" href="#vntrs-022"></a></h2>
-<ul><li><p>Replaced the absolute gradient convergence check with a scaled gradient criterion.</p></li>
+<h2 class="pkg-version" data-toc-text="0.3.0" id="vntrs-030">vntrs 0.3.0<a class="anchor" aria-label="anchor" href="#vntrs-030"></a></h2>
+<ul><li><p>Reorganized optional arguments of <code><a href="../reference/vntrs.html">vntrs()</a></code>.</p></li>
+<li><p>Renamed argument <code>tolerance</code> to <code>identical_tolerance</code> to clarify that it identifies identical optima.</p></li>
+<li><p>Made duplicate-optimum detection scale-free by comparing relative component-wise parameter differences.</p></li>
+<li><p>Added <code>interruption_gradient_tolerance</code> to control the gradient-norm threshold used by premature interruption.</p></li>
+<li><p>Now samples initialization points across finite parameter bounds. <code>init_min</code> and <code>init_max</code> remain the fallback for parameters without finite bounds.</p></li>
+<li><p>Expanded the parameter documentation with explanations and recommended values.</p></li>
+<li><p>Improved initialization when the objective is non-finite at a randomly generated starting point.</p></li>
+<li><p>Now sorts returned optima from best to worst by objective value.</p></li>
+<li><p>Reduced objective-function evaluations by delaying numerical gradients until a trial step is accepted and by reusing available values and gradients. # vntrs 0.2.2</p></li>
+<li><p>Replaced the absolute gradient convergence check with a scaled gradient criterion.</p></li>
 <li><p>Reworked missing-derivative handling.</p></li>
 <li><p>Added damped-BFGS trust-region models and reuse of local curvature across continued searches.</p></li>
 </ul></div>

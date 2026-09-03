@@ -11,12 +11,12 @@ Source:
 [`DESCRIPTION`](https://github.com/loelschlaeger/vntrs/blob/master/DESCRIPTION)
 
 Oelschläger L (2026). *vntrs: Variable Neighborhood Trust Region
-Search*. R package version 0.2.2, <https://loelschlaeger.de/vntrs/>.
+Search*. R package version 0.3.0, <https://loelschlaeger.de/vntrs/>.
 
     @Manual{,
       title = {vntrs: Variable Neighborhood Trust Region Search},
       author = {Lennart Oelschläger},
       year = {2026},
-      note = {R package version 0.2.2},
+      note = {R package version 0.3.0},
       url = {https://loelschlaeger.de/vntrs/},
     }

@@ -11,8 +11,8 @@
 <script src="deps/bootstrap-5.3.8/bootstrap.bundle.min.js"></script><link href="deps/font-awesome-6.5.2/css/all.min.css" rel="stylesheet">
 <link href="deps/font-awesome-6.5.2/css/v4-shims.min.css" rel="stylesheet">
 <script src="deps/headroom-0.11.0/headroom.min.js"></script><script src="deps/headroom-0.11.0/jQuery.headroom.min.js"></script><script src="deps/bootstrap-toc-1.0.1/bootstrap-toc.min.js"></script><script src="deps/clipboard.js-2.0.11/clipboard.min.js"></script><script src="deps/search-1.0.0/autocomplete.jquery.min.js"></script><script src="deps/search-1.0.0/fuse.min.js"></script><script src="deps/search-1.0.0/mark.min.js"></script><!-- pkgdown --><script src="pkgdown.js"></script><meta property="og:title" content="Variable Neighborhood Trust Region Search">
-<meta name="description" content='Implements the variable neighborhood trust region search (VNTRS) algorithm for nonlinear global optimization, following Bierlaire et al. (2009) "A Heuristic for Nonlinear Global Optimization" &lt;doi:10.1287/ijoc.1090.0343&gt;. The method combines neighborhood exploration with a trust-region framework to search the solution space efficiently. It can terminate a local search early when the iterates converge toward a previously visited local optimum or when further improvement within the current region is unlikely. The algorithm can also be used to identify multiple local optima.'>
-<meta property="og:description" content='Implements the variable neighborhood trust region search (VNTRS) algorithm for nonlinear global optimization, following Bierlaire et al. (2009) "A Heuristic for Nonlinear Global Optimization" &lt;doi:10.1287/ijoc.1090.0343&gt;. The method combines neighborhood exploration with a trust-region framework to search the solution space efficiently. It can terminate a local search early when the iterates converge toward a previously visited local optimum or when further improvement within the current region is unlikely. The algorithm can also be used to identify multiple local optima.'>
+<meta name="description" content='Implements a variable neighborhood trust region search (VNTRS) algorithm for nonlinear global optimization, based on Bierlaire et al. (2009) "A Heuristic for Nonlinear Global Optimization" &lt;doi:10.1287/ijoc.1090.0343&gt;. The method combines neighborhood exploration with a trust-region framework to search the solution space efficiently. It can terminate a local search early when the iterates converge toward a previously visited local optimum or when further improvement within the current region is unlikely. The algorithm can also be used to identify multiple local optima.'>
+<meta property="og:description" content='Implements a variable neighborhood trust region search (VNTRS) algorithm for nonlinear global optimization, based on Bierlaire et al. (2009) "A Heuristic for Nonlinear Global Optimization" &lt;doi:10.1287/ijoc.1090.0343&gt;. The method combines neighborhood exploration with a trust-region framework to search the solution space efficiently. It can terminate a local search early when the iterates converge toward a previously visited local optimum or when further improvement within the current region is unlikely. The algorithm can also be used to identify multiple local optima.'>
 <meta property="og:image" content="https://loelschlaeger.de/vntrs/logo.png">
 </head>
 <body>
@@ -23,7 +23,7 @@
 
     <a class="navbar-brand me-2" href="index.html">vntrs</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.2.2</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.3.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -55,7 +55,50 @@
 </div>
 <!-- badges: start -->
 
-<p>This R package implements the variable neighborhood trust region search (VNTRS) algorithm for nonlinear global optimization, following Bierlaire et al. (2009) “A Heuristic for Nonlinear Global Optimization”. The method combines neighborhood exploration with a trust-region framework to search the solution space efficiently. It can terminate a local search early when the iterates converge toward a previously visited local optimum or when further improvement within the current region is unlikely. The algorithm can also be used to identify multiple local optima.</p>
+<p>This R package implements a variable neighborhood trust region search (VNTRS) algorithm for nonlinear global optimization, based on Bierlaire et al. (2009) “A Heuristic for Nonlinear Global Optimization”.</p>
+<p>The method combines neighborhood exploration with a trust-region framework to search the solution space efficiently. It can terminate a local search early when the iterates converge toward a previously visited local optimum or when further improvement within the current region is unlikely. The algorithm can also be used to identify multiple local optima.</p>
+<p>The package implementation differs in some aspects from Bierlaire et al. (2009) as follows:</p>
+<table class="table">
+<colgroup>
+<col width="25%">
+<col width="25%">
+<col width="25%">
+<col width="25%">
+</colgroup>
+<thead><tr>
+<th align="left">Aspect</th>
+<th align="left">Bierlaire et al. (2009)</th>
+<th align="left"><code>vntrs</code></th>
+<th align="left">Rationale</th>
+</tr></thead>
+<tbody>
+<tr>
+<td align="left">Local search</td>
+<td align="left">Unconstrained trust-region method</td>
+<td align="left">Optionally constrained trust-region method, using damped BFGS when no analytical Hessian is supplied</td>
+<td align="left">Allows for parameter bounds, improves numerical stability</td>
+</tr>
+<tr>
+<td align="left">Convergence check</td>
+<td align="left">Based on absolute gradient norm</td>
+<td align="left">Based on relative gradient norm</td>
+<td align="left">Less dependence on parameter scales</td>
+</tr>
+<tr>
+<td align="left">Previously visited optimum</td>
+<td align="left">Stops if the Euclidean distance to a visited optimum is at most <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mn>1</mn><annotation encoding="application/x-tex">1</annotation></semantics></math>
+</td>
+<td align="left">Stops based on a relative, component-wise comparison</td>
+<td align="left">Less dependence on parameter scales</td>
+</tr>
+<tr>
+<td align="left">Armijo-like interruption</td>
+<td align="left">Stops when the objective improvement fails an Armijo-like test</td>
+<td align="left">Not used</td>
+<td align="left">Limited additional value</td>
+</tr>
+</tbody>
+</table>
 <div class="section level2">
 <h2 id="installation">Installation<a class="anchor" aria-label="anchor" href="#installation"></a>
 </h2>
@@ -67,96 +110,42 @@
 <h2 id="how-to-get-started">How to get started<a class="anchor" aria-label="anchor" href="#how-to-get-started"></a>
 </h2>
 <ol style="list-style-type: decimal">
-<li><p>Specify a function <code>f</code> that computes the objective value. It may also return the gradient and Hessian. Return either a numeric value or a named list with <code>value</code>, <code>gradient</code>, and <code>hessian</code> components. Omitted derivatives are approximated by finite differences.</p></li>
-<li><p>Call <code>vntrs::vntrs(f = f, npar = npar, minimize = minimize)</code>, where</p></li>
-</ol>
+<li><p>Specify a function <code>f</code> that computes the objective value. It may also return the gradient and Hessian. Omitted derivatives are approximated by finite differences.</p></li>
+<li>
+<p>Call <code>vntrs::vntrs(f = f, npar = npar, minimize = minimize)</code>, where</p>
 <ul>
 <li><p><code>npar</code> is the number of parameters of <code>f</code> and</p></li>
 <li><p><code>minimize</code> determines whether <code>f</code> should be minimized (<code>minimize = TRUE</code>, the default) or maximized (<code>minimize = FALSE</code>).</p></li>
 </ul>
-<p>Optionally, the algorithm can be tuned by setting dedicated control arguments (for example <code>init_runs</code> or <code>neighbors</code>, see <code><a href="reference/vntrs.html">help("vntrs")</a></code> for details).</p>
+</li>
+</ol>
+<p>Optionally, the algorithm can be tuned by setting control arguments, see <code><a href="reference/vntrs.html">help("vntrs")</a></code> for details.</p>
 </div>
 <div class="section level2">
 <h2 id="example">Example<a class="anchor" aria-label="anchor" href="#example"></a>
 </h2>
-<p>The example below minimizes the well-known <a href="https://www.sfu.ca/~ssurjano/camel6.html" class="external-link">six-hump camel function</a>, which has two global minima.</p>
+<p>The example below minimizes the <a href="https://www.sfu.ca/~ssurjano/camel6.html" class="external-link">six-hump camel function</a> over <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo stretchy="false" form="prefix">[</mo><mi>−</mi><mn>3</mn><mo>,</mo><mn>3</mn><mo stretchy="false" form="postfix">]</mo><mo>×</mo><mo stretchy="false" form="prefix">[</mo><mi>−</mi><mn>2</mn><mo>,</mo><mn>2</mn><mo stretchy="false" form="postfix">]</mo></mrow><annotation encoding="application/x-tex">[-3, 3] \times [-2, 2]</annotation></semantics></math>. On this domain, the function has two global minima and four additional local minima.</p>
 <div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/base/Random.html" class="external-link">set.seed</a></span><span class="op">(</span><span class="fl">1</span><span class="op">)</span></span>
-<span></span>
+<code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://loelschlaeger.de/vntrs/">vntrs</a></span><span class="op">)</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/base/Random.html" class="external-link">set.seed</a></span><span class="op">(</span><span class="fl">1</span><span class="op">)</span></span>
 <span><span class="va">camel</span> <span class="op">&lt;-</span> <span class="kw">function</span><span class="op">(</span><span class="va">x</span><span class="op">)</span> <span class="op">{</span></span>
-<span>  <span class="va">x1</span> <span class="op">&lt;-</span> <span class="va">x</span><span class="op">[</span><span class="fl">1</span><span class="op">]</span></span>
-<span>  <span class="va">x2</span> <span class="op">&lt;-</span> <span class="va">x</span><span class="op">[</span><span class="fl">2</span><span class="op">]</span></span>
-<span>  <span class="va">value</span> <span class="op">&lt;-</span> <span class="op">(</span><span class="fl">4</span> <span class="op">-</span> <span class="fl">2.1</span> <span class="op">*</span> <span class="va">x1</span><span class="op">^</span><span class="fl">2</span> <span class="op">+</span> <span class="va">x1</span><span class="op">^</span><span class="fl">4</span> <span class="op">/</span> <span class="fl">3</span><span class="op">)</span> <span class="op">*</span> <span class="va">x1</span><span class="op">^</span><span class="fl">2</span> <span class="op">+</span> <span class="va">x1</span> <span class="op">*</span> <span class="va">x2</span> <span class="op">+</span> <span class="op">(</span><span class="op">-</span><span class="fl">4</span> <span class="op">+</span> <span class="fl">4</span> <span class="op">*</span> <span class="va">x2</span><span class="op">^</span><span class="fl">2</span><span class="op">)</span> <span class="op">*</span> <span class="va">x2</span><span class="op">^</span><span class="fl">2</span></span>
-<span>  <span class="va">gradient</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span></span>
-<span>    <span class="fl">8</span> <span class="op">*</span> <span class="va">x1</span> <span class="op">-</span> <span class="fl">8.4</span> <span class="op">*</span> <span class="va">x1</span><span class="op">^</span><span class="fl">3</span> <span class="op">+</span> <span class="fl">2</span> <span class="op">*</span> <span class="va">x1</span><span class="op">^</span><span class="fl">5</span> <span class="op">+</span> <span class="va">x2</span>,</span>
-<span>    <span class="va">x1</span> <span class="op">-</span> <span class="fl">8</span> <span class="op">*</span> <span class="va">x2</span> <span class="op">+</span> <span class="fl">16</span> <span class="op">*</span> <span class="va">x2</span><span class="op">^</span><span class="fl">3</span></span>
-<span>  <span class="op">)</span></span>
-<span>  <span class="va">hessian</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/matrix.html" class="external-link">matrix</a></span><span class="op">(</span></span>
-<span>    <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span></span>
-<span>      <span class="fl">8</span> <span class="op">-</span> <span class="fl">25.2</span> <span class="op">*</span> <span class="va">x1</span><span class="op">^</span><span class="fl">2</span> <span class="op">+</span> <span class="fl">10</span> <span class="op">*</span> <span class="va">x1</span><span class="op">^</span><span class="fl">4</span>, <span class="fl">1</span>,</span>
-<span>      <span class="fl">1</span>, <span class="op">-</span><span class="fl">8</span> <span class="op">+</span> <span class="fl">48</span> <span class="op">*</span> <span class="va">x2</span><span class="op">^</span><span class="fl">2</span></span>
-<span>    <span class="op">)</span>,</span>
-<span>    nrow <span class="op">=</span> <span class="fl">2</span>,</span>
-<span>    byrow <span class="op">=</span> <span class="cn">TRUE</span></span>
-<span>  <span class="op">)</span></span>
-<span>  <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>value <span class="op">=</span> <span class="va">value</span>, gradient <span class="op">=</span> <span class="va">gradient</span>, hessian <span class="op">=</span> <span class="va">hessian</span><span class="op">)</span></span>
+<span>  <span class="op">(</span><span class="fl">4</span> <span class="op">-</span> <span class="fl">2.1</span> <span class="op">*</span> <span class="va">x</span><span class="op">[</span><span class="fl">1</span><span class="op">]</span><span class="op">^</span><span class="fl">2</span> <span class="op">+</span> <span class="va">x</span><span class="op">[</span><span class="fl">1</span><span class="op">]</span><span class="op">^</span><span class="fl">4</span> <span class="op">/</span> <span class="fl">3</span><span class="op">)</span> <span class="op">*</span> <span class="va">x</span><span class="op">[</span><span class="fl">1</span><span class="op">]</span><span class="op">^</span><span class="fl">2</span> <span class="op">+</span> <span class="va">x</span><span class="op">[</span><span class="fl">1</span><span class="op">]</span> <span class="op">*</span> <span class="va">x</span><span class="op">[</span><span class="fl">2</span><span class="op">]</span> <span class="op">+</span> <span class="op">(</span><span class="op">-</span><span class="fl">4</span> <span class="op">+</span> <span class="fl">4</span> <span class="op">*</span> <span class="va">x</span><span class="op">[</span><span class="fl">2</span><span class="op">]</span><span class="op">^</span><span class="fl">2</span><span class="op">)</span> <span class="op">*</span> <span class="va">x</span><span class="op">[</span><span class="fl">2</span><span class="op">]</span><span class="op">^</span><span class="fl">2</span></span>
 <span><span class="op">}</span></span>
-<span></span>
-<span><span class="fu">vntrs</span><span class="fu">::</span><span class="fu"><a href="reference/vntrs.html">vntrs</a></span><span class="op">(</span></span>
-<span>  f <span class="op">=</span> <span class="va">camel</span>,           <span class="co"># objective supplies value, gradient, Hessian</span></span>
-<span>  npar <span class="op">=</span> <span class="fl">2</span>,            <span class="co"># two variables (x1 and x2)</span></span>
-<span>  init_runs <span class="op">=</span> <span class="fl">5</span>,       <span class="co"># start from 5 random points</span></span>
-<span>  neighborhoods <span class="op">=</span> <span class="fl">5</span>,   <span class="co"># try 5 neighborhood radii per trust region</span></span>
-<span>  neighbors <span class="op">=</span> <span class="fl">5</span>,       <span class="co"># evaluate 5 trial points per neighborhood</span></span>
-<span>  lower <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="op">-</span><span class="fl">3</span>, <span class="op">-</span><span class="fl">2</span><span class="op">)</span>,   <span class="co"># lower search bounds for x1 and x2</span></span>
-<span>  upper <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">3</span>, <span class="fl">2</span><span class="op">)</span>,     <span class="co"># upper search bounds for x1 and x2</span></span>
-<span>  collect_all <span class="op">=</span> <span class="cn">TRUE</span>,  <span class="co"># also look for local optima</span></span>
-<span>  quiet <span class="op">=</span> <span class="cn">FALSE</span>        <span class="co"># show status messages</span></span>
+<span><span class="va">optima</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/vntrs.html">vntrs</a></span><span class="op">(</span></span>
+<span>  f <span class="op">=</span> <span class="va">camel</span>, npar <span class="op">=</span> <span class="fl">2</span>,</span>
+<span>  lower <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="op">-</span><span class="fl">3</span>, <span class="op">-</span><span class="fl">2</span><span class="op">)</span>, upper <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">3</span>, <span class="fl">2</span><span class="op">)</span>, <span class="co"># search bounds</span></span>
+<span>  collect_all <span class="op">=</span> <span class="cn">TRUE</span>,                 <span class="co"># also collect local optima</span></span>
+<span>  neighborhoods <span class="op">=</span> <span class="fl">10</span>                  <span class="co"># number of neighborhoods</span></span>
 <span><span class="op">)</span></span>
-<span><span class="co">#&gt; Initialize VNTRS.</span></span>
-<span><span class="co">#&gt; * Apply local search at 5 random starting points.</span></span>
-<span><span class="co">#&gt; ** Run 1 [0 s] [found optimum] [optimum is unknown]</span></span>
-<span><span class="co">#&gt; ** Run 2 [0 s] [found optimum] [optimum is unknown]</span></span>
-<span><span class="co">#&gt; ** Run 3 [0 s] [found optimum]</span></span>
-<span><span class="co">#&gt; ** Run 4 [0 s] [found optimum]</span></span>
-<span><span class="co">#&gt; ** Run 5 [0 s] [found optimum]</span></span>
-<span><span class="co">#&gt; Start VNTRS.</span></span>
-<span><span class="co">#&gt; * Select neighborhood 1.</span></span>
-<span><span class="co">#&gt; ** Neighbor 1 [0 s] [found optimum]</span></span>
-<span><span class="co">#&gt; ** Neighbor 2 [0 s] [found optimum]</span></span>
-<span><span class="co">#&gt; ** Neighbor 3 [0 s] [found optimum]</span></span>
-<span><span class="co">#&gt; ** Neighbor 4 [0 s] [found optimum]</span></span>
-<span><span class="co">#&gt; ** Neighbor 5 [0 s] [found optimum]</span></span>
-<span><span class="co">#&gt; * Select neighborhood 2.</span></span>
-<span><span class="co">#&gt; ** Neighbor 1 [0 s] [found optimum] [optimum is unknown]</span></span>
-<span><span class="co">#&gt; ** Neighbor 2 [0 s] [found optimum]</span></span>
-<span><span class="co">#&gt; ** Neighbor 3 [0 s] [found optimum]</span></span>
-<span><span class="co">#&gt; ** Neighbor 4 [0 s] [found optimum]</span></span>
-<span><span class="co">#&gt; ** Neighbor 5 [0 s] [found optimum]</span></span>
-<span><span class="co">#&gt; * Select neighborhood 3.</span></span>
-<span><span class="co">#&gt; ** Neighbor 1 [0 s] [found optimum]</span></span>
-<span><span class="co">#&gt; ** Neighbor 2 [0 s] [found optimum]</span></span>
-<span><span class="co">#&gt; ** Neighbor 3 [0 s] [found optimum]</span></span>
-<span><span class="co">#&gt; ** Neighbor 4 [0 s] [found optimum]</span></span>
-<span><span class="co">#&gt; ** Neighbor 5 [0 s] [found optimum]</span></span>
-<span><span class="co">#&gt; * Select neighborhood 4.</span></span>
-<span><span class="co">#&gt; ** Neighbor 1 [0 s] [found optimum]</span></span>
-<span><span class="co">#&gt; ** Neighbor 2 [0 s] [found optimum]</span></span>
-<span><span class="co">#&gt; ** Neighbor 3 [0 s] [found optimum]</span></span>
-<span><span class="co">#&gt; ** Neighbor 4 [0 s] [found optimum]</span></span>
-<span><span class="co">#&gt; ** Neighbor 5 [0 s] [found optimum]</span></span>
-<span><span class="co">#&gt; * Select neighborhood 5.</span></span>
-<span><span class="co">#&gt; ** Neighbor 1 [0 s] [found optimum] [optimum is unknown]</span></span>
-<span><span class="co">#&gt; ** Neighbor 2 [0 s] [found optimum]</span></span>
-<span><span class="co">#&gt; ** Neighbor 3 [0 s] [found optimum]</span></span>
-<span><span class="co">#&gt; ** Neighbor 4 [0 s] [found optimum]</span></span>
-<span><span class="co">#&gt; ** Neighbor 5 [0 s] [found optimum]</span></span>
-<span><span class="co">#&gt; Done.</span></span>
+<span><span class="va">optima</span></span>
 <span><span class="co">#&gt;            p1         p2      value global</span></span>
-<span><span class="co">#&gt; 1  0.08984201 -0.7126564 -1.0316285   TRUE</span></span>
-<span><span class="co">#&gt; 2 -0.08984201  0.7126564 -1.0316285   TRUE</span></span>
-<span><span class="co">#&gt; 3  1.70360671 -0.7960836 -0.2154638  FALSE</span></span>
-<span><span class="co">#&gt; 4 -1.70360671  0.7960836 -0.2154638  FALSE</span></span></code></pre></div>
+<span><span class="co">#&gt; 1 -0.08984203  0.7126564 -1.0316285   TRUE</span></span>
+<span><span class="co">#&gt; 2  0.08984201 -0.7126564 -1.0316285   TRUE</span></span>
+<span><span class="co">#&gt; 3  1.70360672 -0.7960836 -0.2154638  FALSE</span></span>
+<span><span class="co">#&gt; 4 -1.70360674  0.7960836 -0.2154638  FALSE</span></span>
+<span><span class="co">#&gt; 5 -1.60710473 -0.5686515  2.1042503  FALSE</span></span>
+<span><span class="co">#&gt; 6  1.60710475  0.5686517  2.1042503  FALSE</span></span></code></pre></div>
+<p><img src="reference/figures/README-camel-contour-1.png" alt="Contour plot of the six-hump camel function with two global and four local minima" width="75%" style="display: block; margin: auto;"></p>
 </div>
 </div>
   </main><aside class="col-md-3"><div class="links">
