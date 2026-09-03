@@ -9,7 +9,8 @@ knitr::opts_chunk$set(
   collapse = TRUE,
   comment = "#>",
   fig.path = "man/figures/README-",
-  out.width = "100%"
+  out.width = "75%",
+  fig.align = "center"
 )
 ```
 
@@ -22,14 +23,18 @@ knitr::opts_chunk$set(
 [![CRAN downloads](https://cranlogs.r-pkg.org/badges/grand-total/vntrs)](https://CRAN.R-project.org/package=vntrs)
 <!-- badges: end -->
 
-This R package implements the variable neighborhood trust region search (VNTRS)
-algorithm for nonlinear global optimization, following Bierlaire et al. (2009)
-"A Heuristic for Nonlinear Global Optimization". The method combines
-neighborhood exploration with a trust-region framework to search the solution
-space efficiently. It can terminate a local search early when the iterates
-converge toward a previously visited local optimum or when further improvement
-within the current region is unlikely. The algorithm can also be used to
-identify multiple local optima.
+This R package implements a variable neighborhood trust region search (VNTRS) algorithm for nonlinear global optimization, based on Bierlaire et al. (2009) "A Heuristic for Nonlinear Global Optimization".
+
+The method combines neighborhood exploration with a trust-region framework to search the solution space efficiently. It can terminate a local search early when the iterates converge toward a previously visited local optimum or when further improvement within the current region is unlikely. The algorithm can also be used to identify multiple local optima.
+
+The package implementation differs in some aspects from Bierlaire et al. (2009) as follows:
+
+| Aspect | Bierlaire et al. (2009) | `vntrs` | Rationale |
+|:---|:---|:---|:---|
+| Local search | Unconstrained trust-region method | Optionally constrained trust-region method, using damped BFGS when no analytical Hessian is supplied | Allows for parameter bounds, improves numerical stability |
+| Convergence check | Based on absolute gradient norm | Based on relative gradient norm | Less dependence on parameter scales |
+| Previously visited optimum | Stops if the Euclidean distance to a visited optimum is at most $1$ | Stops based on a relative, component-wise comparison | Less dependence on parameter scales |
+| Armijo-like interruption | Stops when the objective improvement fails an Armijo-like test | Not used | Limited additional value |
 
 ## Installation
 
@@ -41,55 +46,74 @@ install.packages("vntrs")
 
 ## How to get started
 
-1. Specify a function `f` that computes the objective value. It may also return
-   the gradient and Hessian. Return either a numeric value or a named list with
-   `value`, `gradient`, and `hessian` components. Omitted derivatives are
-   approximated by finite differences.
+1. Specify a function `f` that computes the objective value. It may also return the gradient and Hessian. Omitted derivatives are approximated by finite differences.
 
 2. Call `vntrs::vntrs(f = f, npar = npar, minimize = minimize)`, where
 
-- `npar` is the number of parameters of `f` and
+    - `npar` is the number of parameters of `f` and
 
-- `minimize` determines whether `f` should be minimized (`minimize = TRUE`, the default) or maximized (`minimize = FALSE`).
+    - `minimize` determines whether `f` should be minimized (`minimize = TRUE`, the default) or maximized (`minimize = FALSE`).
 
-Optionally, the algorithm can be tuned by setting dedicated control arguments (for example `init_runs` or `neighbors`, see `help("vntrs")` for details).
+Optionally, the algorithm can be tuned by setting control arguments, see `help("vntrs")` for details.
 
 ## Example
 
-The example below minimizes the well-known [six-hump camel function](https://www.sfu.ca/~ssurjano/camel6.html), which has two global minima.
+The example below minimizes the [six-hump camel function](https://www.sfu.ca/~ssurjano/camel6.html) over $[-3, 3] \times [-2, 2]$. On this domain, the function has two global minima and four additional local minima.
 
 ```{r demo}
+library(vntrs)
 set.seed(1)
-
 camel <- function(x) {
-  x1 <- x[1]
-  x2 <- x[2]
-  value <- (4 - 2.1 * x1^2 + x1^4 / 3) * x1^2 + x1 * x2 + (-4 + 4 * x2^2) * x2^2
-  gradient <- c(
-    8 * x1 - 8.4 * x1^3 + 2 * x1^5 + x2,
-    x1 - 8 * x2 + 16 * x2^3
-  )
-  hessian <- matrix(
-    c(
-      8 - 25.2 * x1^2 + 10 * x1^4, 1,
-      1, -8 + 48 * x2^2
-    ),
-    nrow = 2,
-    byrow = TRUE
-  )
-  list(value = value, gradient = gradient, hessian = hessian)
+  (4 - 2.1 * x[1]^2 + x[1]^4 / 3) * x[1]^2 + x[1] * x[2] + (-4 + 4 * x[2]^2) * x[2]^2
 }
-
-vntrs::vntrs(
-  f = camel,           # objective supplies value, gradient, Hessian
-  npar = 2,            # two variables (x1 and x2)
-  init_runs = 5,       # start from 5 random points
-  neighborhoods = 5,   # try 5 neighborhood radii per trust region
-  neighbors = 5,       # evaluate 5 trial points per neighborhood
-  lower = c(-3, -2),   # lower search bounds for x1 and x2
-  upper = c(3, 2),     # upper search bounds for x1 and x2
-  collect_all = TRUE,  # also look for local optima
-  quiet = FALSE        # show status messages
+optima <- vntrs(
+  f = camel, npar = 2,
+  lower = c(-3, -2), upper = c(3, 2), # search bounds
+  collect_all = TRUE,                 # also collect local optima
+  neighborhoods = 10                  # number of neighborhoods
 )
+optima
 ```
 
+```{r camel-contour, fig.width=7, fig.height=5.5, fig.alt="Contour plot of the six-hump camel function with two global and four local minima", echo = FALSE}
+x_values <- seq(-3, 3, length.out = 200)
+y_values <- seq(-2, 2, length.out = 200)
+z_values <- outer(
+  x_values,
+  y_values,
+  Vectorize(function(x, y) camel(c(x, y)))
+)
+local({
+  old_par <- par(no.readonly = TRUE)
+  on.exit(par(old_par))
+  par(mar = c(4.5, 4.2, 5, 1.1))
+  contour(
+    x_values,
+    y_values,
+    z_values,
+    nlevels = 20,
+    xlab = expression(x[1]),
+    ylab = expression(x[2]),
+    main = ""
+  )
+  title("Six-hump camel function", line = 3.5)
+  points(
+    optima$p1,
+    optima$p2,
+    pch = ifelse(optima$global, 19, 17),
+    col = ifelse(optima$global, "red", "blue"),
+    cex = 1.2
+  )
+  legend(
+    "top",
+    legend = c("Global minima (2)", "Local minima (4)"),
+    pch = c(19, 17),
+    col = c("red", "blue"),
+    horiz = TRUE,
+    inset = c(0, -0.1),
+    xpd = NA,
+    cex = 0.9,
+    bty = "n"
+  )
+})
+```
