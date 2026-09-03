@@ -5,7 +5,8 @@ local trust-region optimization,
 optional parameter bounds,
 analytical derivatives are not required,
 early stopping of inferior or previously explored search paths,
-collection of multiple local optima.
+collection of multiple local optima,
+optional time and function-evaluation budgets.
 
 "><meta property="og:description" content="Run the variable neighborhood trust region search algorithm. Features:
 expanding-neighborhood exploration,
@@ -13,7 +14,8 @@ local trust-region optimization,
 optional parameter bounds,
 analytical derivatives are not required,
 early stopping of inferior or previously explored search paths,
-collection of multiple local optima.
+collection of multiple local optima,
+optional time and function-evaluation budgets.
 
 "><meta property="og:image" content="https://loelschlaeger.de/vntrs/logo.png"></head><body>
     <a href="#main" class="visually-hidden-focusable">Skip to contents</a>
@@ -54,7 +56,8 @@ collection of multiple local optima.
 <li><p>optional parameter bounds,</p></li>
 <li><p>analytical derivatives are not required,</p></li>
 <li><p>early stopping of inferior or previously explored search paths,</p></li>
-<li><p>collection of multiple local optima.</p></li>
+<li><p>collection of multiple local optima,</p></li>
+<li><p>optional time and function-evaluation budgets.</p></li>
 </ul></div>
 
     <div class="section level2">
@@ -74,11 +77,14 @@ collection of multiple local optima.
 <span>  neighbors <span class="op">=</span> <span class="fl">5L</span>,</span>
 <span>  beta <span class="op">=</span> <span class="fl">0.05</span>,</span>
 <span>  iterlim <span class="op">=</span> <span class="fl">100L</span>,</span>
+<span>  scale <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"relative"</span>, <span class="st">"absolute"</span><span class="op">)</span>,</span>
 <span>  identical_tolerance <span class="op">=</span> <span class="fl">0.001</span>,</span>
-<span>  inferior_tolerance <span class="op">=</span> <span class="fl">1e-06</span>,</span>
+<span>  known_optimum_radius <span class="op">=</span> <span class="kw">if</span> <span class="op">(</span><span class="va">scale</span> <span class="op">==</span> <span class="st">"relative"</span><span class="op">)</span> <span class="fl">0.1</span> <span class="kw">else</span> <span class="fl">1</span>,</span>
+<span>  inferior_tolerance <span class="op">=</span> <span class="kw">if</span> <span class="op">(</span><span class="va">scale</span> <span class="op">==</span> <span class="st">"relative"</span><span class="op">)</span> <span class="fl">1e-06</span> <span class="kw">else</span> <span class="fl">3</span>,</span>
 <span>  interruption_gradient_tolerance <span class="op">=</span> <span class="fl">0.001</span>,</span>
 <span>  gradient_tolerance <span class="op">=</span> <span class="fl">1e-06</span>,</span>
 <span>  time_limit <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  evaluation_limit <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  quiet <span class="op">=</span> <span class="cn">TRUE</span></span>
 <span><span class="op">)</span></span></code></pre></div>
     </div>
@@ -178,16 +184,16 @@ exploration is worth the additional computation time.</p></dd>
 <dt id="arg-beta">beta<a class="anchor" aria-label="anchor" href="#arg-beta"></a></dt>
 <dd><p>[<code>numeric(1)</code>]<br>
 Controls which directions are more likely to be selected when generating
-trial points. The local model describes the curvature around the best solution
-through eigenvectors (directions) and eigenvalues (strength of curvature).
-The sampling weight of a direction is proportional to
+trial points. The local model describes the curvature around the best
+solution through eigenvectors (directions) and eigenvalues (strength of
+curvature). The sampling weight of a direction is proportional to
 <code>exp(beta * lambda / d)</code>, where <code>lambda</code> is its eigenvalue and
 <code>d</code> is the current neighborhood scale. With <code>beta = 0</code>, all
 positive and negative eigenvector directions are equally likely. Larger
 values concentrate the search on directions in which the objective bends
 more strongly.</p>
-<p>This is the weighting rule for \(\beta\) in Bierlaire et al. (2009), Section
-2.3, Equation (17).</p>
+<p>This is the weighting rule for \(\beta\) in Bierlaire et al. (2009),
+Section 2.3, Equation (17).</p>
 <p><strong>Recommendation:</strong> Start with <code>0.05</code>; use <code>0</code> to disable the
 curvature preference, for example when the objective is noisy.</p></dd>
 
@@ -200,13 +206,21 @@ neighborhood exploration.</p>
 promising local searches frequently stop before convergence.</p></dd>
 
 
+<dt id="arg-scale">scale<a class="anchor" aria-label="anchor" href="#arg-scale"></a></dt>
+<dd><p>[<code>character(1)</code>]<br>
+Determines whether tolerances are interpreted on a <code>"relative"</code> or
+<code>"absolute"</code> scale. Relative scaling reduces dependence on the units of
+the parameters and objective.</p>
+<p><strong>Recommendation:</strong> Use <code>"relative"</code> unless all quantities have
+meaningful common units.</p></dd>
+
+
 <dt id="arg-identical-tolerance">identical_tolerance<a class="anchor" aria-label="anchor" href="#arg-identical-tolerance"></a></dt>
 <dd><p>[<code>numeric(1)</code>]<br>
-Relative parameter tolerance for deciding whether two solutions represent
-the same optimum. For parameter vectors \(x\) and \(y\), the algorithm
-computes the difference in each component relative to
-\(\max(1, |x_i|, |y_i|)\). The points are treated as the same optimum when
-the largest of these scaled differences does not exceed
+Parameter tolerance for deciding whether two solutions represent the same
+optimum. With <code>scale = "relative"</code>, each component difference is
+divided by \(\max(1, |x_i|, |y_i|)\). The points are treated as the same
+optimum when the largest component difference does not exceed
 <code>identical_tolerance</code>. The later point is then not stored as a separate
 optimum, and a local search approaching such a point may be stopped early.
 This rule also applies when <code>collect_all = TRUE</code>.</p>
@@ -216,34 +230,52 @@ same optimum; decrease it when genuinely different optima may lie close
 together.</p></dd>
 
 
+<dt id="arg-known-optimum-radius">known_optimum_radius<a class="anchor" aria-label="anchor" href="#arg-known-optimum-radius"></a></dt>
+<dd><p>[<code>numeric(1)</code>]<br>
+Euclidean distance used to decide whether the current point is near a
+previously identified optimum. With <code>scale = "relative"</code>,
+each parameter difference between points \(x\) and \(y\) is divided by
+\(\max(1, |x_i|, |y_i|)\).</p>
+<p><strong>Recommendation:</strong> Use the scale-dependent default (<code>0.1</code> for
+relative distances and <code>1</code> for absolute distances); reduce it when
+nearby optima should be distinguished; increase it when a wider region around
+known optima should be treated as already explored.</p></dd>
+
+
 <dt id="arg-inferior-tolerance">inferior_tolerance<a class="anchor" aria-label="anchor" href="#arg-inferior-tolerance"></a></dt>
 <dd><p>[<code>numeric(1)</code>]<br>
 Controls when the algorithm gives up early on a local search that is unlikely
-to improve the best known solution. It compares objective values in absolute
-units and is used only after at least one optimum has been found. The search
-is stopped in either of the following situations:</p><ul><li><p>Its value is worse than the best known value by more than
+to improve the best known solution. With <code>scale = "absolute"</code>, it is
+measured in objective-function units. With <code>scale = "relative"</code>, the
+objective difference is divided by \(\max(1, |f_{best}|)\), where
+\(f_{best}\) is the best known value. It is used only after at least one
+optimum has been found. The search is stopped in either of the following
+situations:</p><ul><li><p>Its value is worse than the best known value by more than
 <code>inferior_tolerance</code>.</p></li>
-<li><p>It is within Euclidean distance <code>1</code> of a known optimum but does
+<li><p>It is within <code>known_optimum_radius</code> of a known optimum but does
 not improve the best known value by more than <code>inferior_tolerance</code>.</p></li>
 </ul><p>Setting <code>collect_all = TRUE</code> disables both objective-value rules above,
 allowing searches toward inferior local optima to continue. Searches that
 approach an already identified optimum can still be stopped using
 <code>identical_tolerance</code>.</p>
-<p><strong>Recommendation:</strong> Start with <code>1e-6</code>; decrease it when
-improvements below <code>1e-6</code> are meaningful.</p></dd>
+<p><strong>Recommendation:</strong> Use the scale-dependent default (<code>1e-6</code> for
+relative objective differences and <code>3</code> for absolute differences); reduce
+the value to stop inferior searches earlier; increase it to make interruption
+more conservative.</p></dd>
 
 
 <dt id="arg-interruption-gradient-tolerance">interruption_gradient_tolerance<a class="anchor" aria-label="anchor" href="#arg-interruption-gradient-tolerance"></a></dt>
 <dd><p>[<code>numeric(1)</code>]<br>
-Non-negative threshold for the ordinary Euclidean gradient norm used by the
-premature-interruption rule. Once an optimum is known, objective-value checks
-controlled by <code>inferior_tolerance</code> are considered only when the current
-gradient norm is no greater than this value. This indicates that the local
-search is approaching a stationary point and is therefore unlikely to leave
-the current region.</p>
+Non-negative threshold for the relative or absolute (depending on
+<code>scale</code>) (projected; to deal with parameter bounds) gradient norm used
+by the premature-interruption rule. Once an optimum is known, objective-value
+checks controlled by <code>inferior_tolerance</code> are considered only when the
+current gradient norm is no greater than this value. This indicates that the
+local search is approaching a stationary point and is therefore unlikely to
+leave the current region.</p>
 <p>Setting <code>collect_all = TRUE</code> disables the interruption rules, so
 <code>interruption_gradient_tolerance</code> then has no effect.</p>
-<p><strong>Recommendation:</strong> Use <code>1e-3</code>, the threshold used for
+<p><strong>Recommendation:</strong> Use <code>1e-3</code>, the (absolute) threshold used for
 premature interruption in Bierlaire et al. (2009). Use a smaller value to
 make premature interruption more conservative.</p></dd>
 
@@ -252,9 +284,9 @@ make premature interruption more conservative.</p></dd>
 <dd><p>[<code>numeric(1)</code>]<br>
 First-order convergence tolerance for each local trust-region search.
 A local search satisfies the first-order convergence condition when the
-(projected; to deal with parameter bounds) gradient is no greater than
-<code>gradient_tolerance</code>. Additional curvature checks are used to avoid
-accepting saddle points.</p>
+relative or absolute (depending on <code>scale</code>) (projected; to deal with
+parameter bounds) gradient is no greater than <code>gradient_tolerance</code>.
+Additional curvature checks are used to avoid accepting saddle points.</p>
 <p><strong>Recommendation:</strong> Start with <code>1e-6</code>; increase it for noisy
 objectives or when faster, less precise local searches are sufficient;
 decrease it for smooth objectives with reliable derivatives
@@ -266,6 +298,15 @@ when greater local accuracy is required.</p></dd>
 Optional approximate time limit in seconds. It is checked between local
 searches, so a running objective evaluation or local search is not interrupted
 and the elapsed time may exceed the limit.</p></dd>
+
+
+<dt id="arg-evaluation-limit">evaluation_limit<a class="anchor" aria-label="anchor" href="#arg-evaluation-limit"></a></dt>
+<dd><p>[<code>integer(1)</code> | <code>NULL</code>]<br>
+Optional maximum number of calls to <code>f</code>. The limit includes evaluations
+used to validate the objective and to approximate missing derivatives. It is
+enforced before every call, so the specified number is not exceeded. If the
+limit is reached, the algorithm returns optima completed before that point,
+or <code>NULL</code> if none have been found.</p></dd>
 
 
 <dt id="arg-quiet">quiet<a class="anchor" aria-label="anchor" href="#arg-quiet"></a></dt>

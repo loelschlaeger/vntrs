@@ -8,11 +8,20 @@
 - Renamed argument `tolerance` to `identical_tolerance` to clarify that
   it identifies identical optima.
 
-- Made duplicate-optimum detection scale-free by comparing relative
-  component-wise parameter differences.
+- Added argument `scale`. Its default `"relative"` applies scale-free
+  distance, objective-gap, duplicate-optimum, and gradient criteria;
+  `"absolute"` applies the corresponding unscaled measures used by
+  Bierlaire et al. (2009).
 
-- Added `interruption_gradient_tolerance` to control the gradient-norm
-  threshold used by premature interruption.
+- Made duplicate-optimum detection scale-free by default, while
+  retaining an absolute comparison through `scale = "absolute"`.
+
+- Added arguments `known_optimum_radius` and
+  `interruption_gradient_tolerance` to control the distance and gradient
+  thresholds for premature interruption.
+
+- Added argument `evaluation_limit` to impose a maximum number of
+  objective-function calls.
 
 - Now samples initialization points across finite parameter bounds.
   `init_min` and `init_max` remain the fallback for parameters without

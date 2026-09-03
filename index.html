@@ -79,23 +79,16 @@
 <td align="left">Allows for parameter bounds, improves numerical stability</td>
 </tr>
 <tr>
-<td align="left">Convergence check</td>
-<td align="left">Based on absolute gradient norm</td>
-<td align="left">Based on relative gradient norm</td>
-<td align="left">Less dependence on parameter scales</td>
+<td align="left">Scaling</td>
+<td align="left">Uses absolute distance and gradient criteria</td>
+<td align="left">Uses relative criteria by default; <code>scale = "absolute"</code> applies unscaled criteria</td>
+<td align="left">Relative criteria reduce scale dependence</td>
 </tr>
 <tr>
-<td align="left">Previously visited optimum</td>
-<td align="left">Stops if the Euclidean distance to a visited optimum is at most <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mn>1</mn><annotation encoding="application/x-tex">1</annotation></semantics></math>
-</td>
-<td align="left">Stops based on a relative, component-wise comparison</td>
-<td align="left">Less dependence on parameter scales</td>
-</tr>
-<tr>
-<td align="left">Armijo-like interruption</td>
-<td align="left">Stops when the objective improvement fails an Armijo-like test</td>
+<td align="left">Interruption</td>
+<td align="left">Uses Armijo-like improvement test</td>
 <td align="left">Not used</td>
-<td align="left">Limited additional value</td>
+<td align="left">Limited value in addition to other interruption criteria</td>
 </tr>
 </tbody>
 </table>

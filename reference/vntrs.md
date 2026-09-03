@@ -12,7 +12,9 @@ Run the variable neighborhood trust region search algorithm. Features:
 
 - early stopping of inferior or previously explored search paths,
 
-- collection of multiple local optima.
+- collection of multiple local optima,
+
+- optional time and function-evaluation budgets.
 
 ## Usage
 
@@ -32,11 +34,14 @@ vntrs(
   neighbors = 5L,
   beta = 0.05,
   iterlim = 100L,
+  scale = c("relative", "absolute"),
   identical_tolerance = 0.001,
-  inferior_tolerance = 1e-06,
+  known_optimum_radius = if (scale == "relative") 0.1 else 1,
+  inferior_tolerance = if (scale == "relative") 1e-06 else 3,
   interruption_gradient_tolerance = 0.001,
   gradient_tolerance = 1e-06,
   time_limit = NULL,
+  evaluation_limit = NULL,
   quiet = TRUE
 )
 ```
@@ -171,14 +176,23 @@ vntrs(
   **Recommendation:** Start with `100`; increase it if otherwise
   promising local searches frequently stop before convergence.
 
+- scale:
+
+  \[`character(1)`\]  
+  Determines whether tolerances are interpreted on a `"relative"` or
+  `"absolute"` scale. Relative scaling reduces dependence on the units
+  of the parameters and objective.
+
+  **Recommendation:** Use `"relative"` unless all quantities have
+  meaningful common units.
+
 - identical_tolerance:
 
   \[`numeric(1)`\]  
-  Relative parameter tolerance for deciding whether two solutions
-  represent the same optimum. For parameter vectors \\x\\ and \\y\\, the
-  algorithm computes the difference in each component relative to
-  \\\max(1, \|x_i\|, \|y_i\|)\\. The points are treated as the same
-  optimum when the largest of these scaled differences does not exceed
+  Parameter tolerance for deciding whether two solutions represent the
+  same optimum. With `scale = "relative"`, each component difference is
+  divided by \\\max(1, \|x_i\|, \|y_i\|)\\. The points are treated as
+  the same optimum when the largest component difference does not exceed
   `identical_tolerance`. The later point is then not stored as a
   separate optimum, and a local search approaching such a point may be
   stopped early. This rule also applies when `collect_all = TRUE`.
@@ -188,19 +202,34 @@ vntrs(
   clearly the same optimum; decrease it when genuinely different optima
   may lie close together.
 
+- known_optimum_radius:
+
+  \[`numeric(1)`\]  
+  Euclidean distance used to decide whether the current point is near a
+  previously identified optimum. With `scale = "relative"`, each
+  parameter difference between points \\x\\ and \\y\\ is divided by
+  \\\max(1, \|x_i\|, \|y_i\|)\\.
+
+  **Recommendation:** Use the scale-dependent default (`0.1` for
+  relative distances and `1` for absolute distances); reduce it when
+  nearby optima should be distinguished; increase it when a wider region
+  around known optima should be treated as already explored.
+
 - inferior_tolerance:
 
   \[`numeric(1)`\]  
   Controls when the algorithm gives up early on a local search that is
-  unlikely to improve the best known solution. It compares objective
-  values in absolute units and is used only after at least one optimum
-  has been found. The search is stopped in either of the following
-  situations:
+  unlikely to improve the best known solution. With
+  `scale = "absolute"`, it is measured in objective-function units. With
+  `scale = "relative"`, the objective difference is divided by \\\max(1,
+  \|f\_{best}\|)\\, where \\f\_{best}\\ is the best known value. It is
+  used only after at least one optimum has been found. The search is
+  stopped in either of the following situations:
 
   - Its value is worse than the best known value by more than
     `inferior_tolerance`.
 
-  - It is within Euclidean distance `1` of a known optimum but does not
+  - It is within `known_optimum_radius` of a known optimum but does not
     improve the best known value by more than `inferior_tolerance`.
 
   Setting `collect_all = TRUE` disables both objective-value rules
@@ -208,13 +237,16 @@ vntrs(
   Searches that approach an already identified optimum can still be
   stopped using `identical_tolerance`.
 
-  **Recommendation:** Start with `1e-6`; decrease it when improvements
-  below `1e-6` are meaningful.
+  **Recommendation:** Use the scale-dependent default (`1e-6` for
+  relative objective differences and `3` for absolute differences);
+  reduce the value to stop inferior searches earlier; increase it to
+  make interruption more conservative.
 
 - interruption_gradient_tolerance:
 
   \[`numeric(1)`\]  
-  Non-negative threshold for the ordinary Euclidean gradient norm used
+  Non-negative threshold for the relative or absolute (depending on
+  `scale`) (projected; to deal with parameter bounds) gradient norm used
   by the premature-interruption rule. Once an optimum is known,
   objective-value checks controlled by `inferior_tolerance` are
   considered only when the current gradient norm is no greater than this
@@ -225,18 +257,19 @@ vntrs(
   Setting `collect_all = TRUE` disables the interruption rules, so
   `interruption_gradient_tolerance` then has no effect.
 
-  **Recommendation:** Use `1e-3`, the threshold used for premature
-  interruption in Bierlaire et al. (2009). Use a smaller value to make
-  premature interruption more conservative.
+  **Recommendation:** Use `1e-3`, the (absolute) threshold used for
+  premature interruption in Bierlaire et al. (2009). Use a smaller value
+  to make premature interruption more conservative.
 
 - gradient_tolerance:
 
   \[`numeric(1)`\]  
   First-order convergence tolerance for each local trust-region search.
   A local search satisfies the first-order convergence condition when
-  the (projected; to deal with parameter bounds) gradient is no greater
-  than `gradient_tolerance`. Additional curvature checks are used to
-  avoid accepting saddle points.
+  the relative or absolute (depending on `scale`) (projected; to deal
+  with parameter bounds) gradient is no greater than
+  `gradient_tolerance`. Additional curvature checks are used to avoid
+  accepting saddle points.
 
   **Recommendation:** Start with `1e-6`; increase it for noisy
   objectives or when faster, less precise local searches are sufficient;
@@ -249,6 +282,15 @@ vntrs(
   Optional approximate time limit in seconds. It is checked between
   local searches, so a running objective evaluation or local search is
   not interrupted and the elapsed time may exceed the limit.
+
+- evaluation_limit:
+
+  \[`integer(1)` \| `NULL`\]  
+  Optional maximum number of calls to `f`. The limit includes
+  evaluations used to validate the objective and to approximate missing
+  derivatives. It is enforced before every call, so the specified number
+  is not exceeded. If the limit is reached, the algorithm returns optima
+  completed before that point, or `NULL` if none have been found.
 
 - quiet:
 
