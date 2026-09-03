@@ -19,11 +19,14 @@ vntrs(
   neighbors = 5L,
   beta = 0.05,
   iterlim = 100L,
+  scale = c("relative", "absolute"),
   identical_tolerance = 0.001,
-  inferior_tolerance = 1e-06,
+  known_optimum_radius = if (scale == "relative") 0.1 else 1,
+  inferior_tolerance = if (scale == "relative") 1e-06 else 3,
   interruption_gradient_tolerance = 0.001,
   gradient_tolerance = 1e-06,
   time_limit = NULL,
+  evaluation_limit = NULL,
   quiet = TRUE
 )
 }
@@ -110,17 +113,17 @@ exploration is worth the additional computation time.}
 
 \item{beta}{[\code{numeric(1)}]\cr
 Controls which directions are more likely to be selected when generating
-trial points. The local model describes the curvature around the best solution
-through eigenvectors (directions) and eigenvalues (strength of curvature).
-The sampling weight of a direction is proportional to
+trial points. The local model describes the curvature around the best
+solution through eigenvectors (directions) and eigenvalues (strength of
+curvature). The sampling weight of a direction is proportional to
 \code{exp(beta * lambda / d)}, where \code{lambda} is its eigenvalue and
 \code{d} is the current neighborhood scale. With \code{beta = 0}, all
 positive and negative eigenvector directions are equally likely. Larger
 values concentrate the search on directions in which the objective bends
 more strongly.
 
-This is the weighting rule for \eqn{\beta} in Bierlaire et al. (2009), Section
-2.3, Equation (17).
+This is the weighting rule for \eqn{\beta} in Bierlaire et al. (2009),
+Section 2.3, Equation (17).
 
 \strong{Recommendation:} Start with \code{0.05}; use \code{0} to disable the
 curvature preference, for example when the objective is noisy.}
@@ -132,12 +135,19 @@ neighborhood exploration.
 \strong{Recommendation:} Start with \code{100}; increase it if otherwise
 promising local searches frequently stop before convergence.}
 
+\item{scale}{[\code{character(1)}]\cr
+Determines whether tolerances are interpreted on a \code{"relative"} or
+\code{"absolute"} scale. Relative scaling reduces dependence on the units of
+the parameters and objective.
+
+\strong{Recommendation:} Use \code{"relative"} unless all quantities have
+meaningful common units.}
+
 \item{identical_tolerance}{[\code{numeric(1)}]\cr
-Relative parameter tolerance for deciding whether two solutions represent
-the same optimum. For parameter vectors \eqn{x} and \eqn{y}, the algorithm
-computes the difference in each component relative to
-\eqn{\max(1, |x_i|, |y_i|)}. The points are treated as the same optimum when
-the largest of these scaled differences does not exceed
+Parameter tolerance for deciding whether two solutions represent the same
+optimum. With \code{scale = "relative"}, each component difference is
+divided by \eqn{\max(1, |x_i|, |y_i|)}. The points are treated as the same
+optimum when the largest component difference does not exceed
 \code{identical_tolerance}. The later point is then not stored as a separate
 optimum, and a local search approaching such a point may be stopped early.
 This rule also applies when \code{collect_all = TRUE}.
@@ -147,15 +157,29 @@ searches return slightly different parameter vectors for what is clearly the
 same optimum; decrease it when genuinely different optima may lie close
 together.}
 
+\item{known_optimum_radius}{[\code{numeric(1)}]\cr
+Euclidean distance used to decide whether the current point is near a
+previously identified optimum. With \code{scale = "relative"},
+each parameter difference between points \eqn{x} and \eqn{y} is divided by
+\eqn{\max(1, |x_i|, |y_i|)}.
+
+\strong{Recommendation:} Use the scale-dependent default (\code{0.1} for
+relative distances and \code{1} for absolute distances); reduce it when
+nearby optima should be distinguished; increase it when a wider region around
+known optima should be treated as already explored.}
+
 \item{inferior_tolerance}{[\code{numeric(1)}]\cr
 Controls when the algorithm gives up early on a local search that is unlikely
-to improve the best known solution. It compares objective values in absolute
-units and is used only after at least one optimum has been found. The search
-is stopped in either of the following situations:
+to improve the best known solution. With \code{scale = "absolute"}, it is
+measured in objective-function units. With \code{scale = "relative"}, the
+objective difference is divided by \eqn{\max(1, |f_{best}|)}, where
+\eqn{f_{best}} is the best known value. It is used only after at least one
+optimum has been found. The search is stopped in either of the following
+situations:
 \itemize{
 \item Its value is worse than the best known value by more than
 \code{inferior_tolerance}.
-\item It is within Euclidean distance \code{1} of a known optimum but does
+\item It is within \code{known_optimum_radius} of a known optimum but does
 not improve the best known value by more than \code{inferior_tolerance}.
 }
 
@@ -164,30 +188,33 @@ allowing searches toward inferior local optima to continue. Searches that
 approach an already identified optimum can still be stopped using
 \code{identical_tolerance}.
 
-\strong{Recommendation:} Start with \code{1e-6}; decrease it when
-improvements below \code{1e-6} are meaningful.}
+\strong{Recommendation:} Use the scale-dependent default (\code{1e-6} for
+relative objective differences and \code{3} for absolute differences); reduce
+the value to stop inferior searches earlier; increase it to make interruption
+more conservative.}
 
 \item{interruption_gradient_tolerance}{[\code{numeric(1)}]\cr
-Non-negative threshold for the ordinary Euclidean gradient norm used by the
-premature-interruption rule. Once an optimum is known, objective-value checks
-controlled by \code{inferior_tolerance} are considered only when the current
-gradient norm is no greater than this value. This indicates that the local
-search is approaching a stationary point and is therefore unlikely to leave
-the current region.
+Non-negative threshold for the relative or absolute (depending on
+\code{scale}) (projected; to deal with parameter bounds) gradient norm used
+by the premature-interruption rule. Once an optimum is known, objective-value
+checks controlled by \code{inferior_tolerance} are considered only when the
+current gradient norm is no greater than this value. This indicates that the
+local search is approaching a stationary point and is therefore unlikely to
+leave the current region.
 
 Setting \code{collect_all = TRUE} disables the interruption rules, so
 \code{interruption_gradient_tolerance} then has no effect.
 
-\strong{Recommendation:} Use \code{1e-3}, the threshold used for
+\strong{Recommendation:} Use \code{1e-3}, the (absolute) threshold used for
 premature interruption in Bierlaire et al. (2009). Use a smaller value to
 make premature interruption more conservative.}
 
 \item{gradient_tolerance}{[\code{numeric(1)}]\cr
 First-order convergence tolerance for each local trust-region search.
 A local search satisfies the first-order convergence condition when the
-(projected; to deal with parameter bounds) gradient is no greater than
-\code{gradient_tolerance}. Additional curvature checks are used to avoid
-accepting saddle points.
+relative or absolute (depending on \code{scale}) (projected; to deal with
+parameter bounds) gradient is no greater than \code{gradient_tolerance}.
+Additional curvature checks are used to avoid accepting saddle points.
 
 \strong{Recommendation:} Start with \code{1e-6}; increase it for noisy
 objectives or when faster, less precise local searches are sufficient;
@@ -198,6 +225,13 @@ when greater local accuracy is required.}
 Optional approximate time limit in seconds. It is checked between local
 searches, so a running objective evaluation or local search is not interrupted
 and the elapsed time may exceed the limit.}
+
+\item{evaluation_limit}{[\code{integer(1)} | \code{NULL}]\cr
+Optional maximum number of calls to \code{f}. The limit includes evaluations
+used to validate the objective and to approximate missing derivatives. It is
+enforced before every call, so the specified number is not exceeded. If the
+limit is reached, the algorithm returns optima completed before that point,
+or \code{NULL} if none have been found.}
 
 \item{quiet}{[\code{logical(1)}]\cr
 If \code{TRUE}, suppress progress messages. Warnings are still emitted.}
@@ -214,7 +248,8 @@ Run the variable neighborhood trust region search algorithm. Features:
 \item optional parameter bounds,
 \item analytical derivatives are not required,
 \item early stopping of inferior or previously explored search paths,
-\item collection of multiple local optima.
+\item collection of multiple local optima,
+\item optional time and function-evaluation budgets.
 }
 }
 \examples{

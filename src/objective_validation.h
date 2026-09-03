@@ -7,6 +7,51 @@
 
 namespace vntrs {
 
+struct EvaluationLimitReached {};
+
+struct EvaluationCounter {
+  bool limited;
+  int limit;
+  int count;
+
+  EvaluationCounter(bool limited_, int limit_)
+    : limited(limited_), limit(limit_), count(0) {}
+
+  void consume() {
+    if (!limited) {
+      return;
+    }
+    if (count >= limit) {
+      throw EvaluationLimitReached();
+    }
+    ++count;
+  }
+};
+
+inline thread_local EvaluationCounter* active_evaluation_counter = nullptr;
+
+class ScopedEvaluationCounter {
+private:
+  EvaluationCounter* previous;
+
+public:
+  explicit ScopedEvaluationCounter(EvaluationCounter* counter)
+    : previous(active_evaluation_counter) {
+    active_evaluation_counter = counter;
+  }
+
+  ~ScopedEvaluationCounter() {
+    active_evaluation_counter = previous;
+  }
+};
+
+inline SEXP call_objective(Rcpp::Function f, const arma::vec& x) {
+  if (active_evaluation_counter != nullptr) {
+    active_evaluation_counter->consume();
+  }
+  return f(Rcpp::wrap(x));
+}
+
 struct ObjectiveComponents {
   double value;
   arma::vec gradient;
@@ -141,12 +186,12 @@ T finite_difference(const arma::vec& x, const T& base, arma::uword i,
 }
 
 inline double evaluate_value(Rcpp::Function f, const arma::vec& x) {
-  return extract_value(f(Rcpp::wrap(x)));
+  return extract_value(call_objective(f, x));
 }
 
 inline arma::vec evaluate_supplied_gradient(Rcpp::Function f,
                                             const arma::vec& x) {
-  SEXP result = f(Rcpp::wrap(x));
+  SEXP result = call_objective(f, x);
   extract_value(result);
   if (TYPEOF(result) != VECSXP) {
     Rcpp::stop("Function 'f' did not consistently provide 'gradient'.");
@@ -219,7 +264,7 @@ inline ObjectiveComponents parse_objective(Rcpp::Function f,
                                            const arma::vec& lower,
                                            const arma::vec& upper,
                                            bool allow_nonfinite = false) {
-  SEXP result = f(Rcpp::wrap(x));
+  SEXP result = call_objective(f, x);
   ObjectiveComponents out{
     extract_value(result, !allow_nonfinite),
     arma::vec(x.n_elem, arma::fill::value(NA_REAL)),

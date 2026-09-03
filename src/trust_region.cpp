@@ -3,50 +3,11 @@
 #include <cmath>
 #include <limits>
 #include "objective_validation.h"
+#include "optimization_metrics.h"
 
 using namespace Rcpp;
 
 // [[Rcpp::depends(RcppArmadillo)]]
-
-static arma::vec projected_gradient(const arma::vec& gradient,
-                                    const arma::vec& x,
-                                    const arma::vec& lower,
-                                    const arma::vec& upper) {
-  arma::vec projected = gradient;
-  for (arma::uword i = 0; i < projected.n_elem; ++i) {
-    double lower_tol = std::isfinite(lower(i))
-      ? 1e-8 * (1.0 + std::fabs(lower(i))) : 0.0;
-    double upper_tol = std::isfinite(upper(i))
-      ? 1e-8 * (1.0 + std::fabs(upper(i))) : 0.0;
-    bool at_lower = std::isfinite(lower(i)) &&
-      x(i) <= lower(i) + lower_tol;
-    bool at_upper = std::isfinite(upper(i)) &&
-      x(i) >= upper(i) - upper_tol;
-    if (at_lower && projected(i) > 0.0) {
-      projected(i) = 0.0;
-    }
-    if (at_upper && projected(i) < 0.0) {
-      projected(i) = 0.0;
-    }
-  }
-  return projected;
-}
-
-static double scaled_gradient_measure(const arma::vec& gradient,
-                                      const arma::vec& x,
-                                      double value,
-                                      const arma::vec& lower,
-                                      const arma::vec& upper) {
-  arma::vec projected = projected_gradient(gradient, x, lower, upper);
-  if (!projected.is_finite()) return NA_REAL;
-  double measure = 0.0;
-  for (arma::uword i = 0; i < x.n_elem; ++i) {
-    double parameter_scale = std::isfinite(x(i))
-      ? std::max(1.0, std::fabs(x(i))) : 1.0;
-    measure = std::max(measure, std::fabs(projected(i)) * parameter_scale);
-  }
-  return measure / std::max(1.0, std::fabs(value));
-}
 
 static void apply_bounds(arma::vec& x, const arma::vec& lower,
                          const arma::vec& upper) {
@@ -257,6 +218,7 @@ List trust_region_cpp(
     int iterlim,
     bool minimize,
     double tol,
+    bool relative_scale,
     double eta,
     NumericVector lower,
     NumericVector upper,
@@ -330,8 +292,8 @@ List trust_region_cpp(
   bool converged = false;
 
   while (iter < iterlim) {
-    double gradient_measure = scaled_gradient_measure(
-      gradient, x, value, lower_vec, upper_vec
+    double gradient_measure = vntrs::gradient_measure(
+      gradient, x, value, lower_vec, upper_vec, relative_scale
     );
     if (!std::isfinite(gradient_measure)) {
       break;
@@ -467,8 +429,8 @@ List trust_region_cpp(
     }
   }
 
-  double gradient_measure = scaled_gradient_measure(
-    gradient, x, value, lower_vec, upper_vec
+  double gradient_measure = vntrs::gradient_measure(
+    gradient, x, value, lower_vec, upper_vec, relative_scale
   );
   converged = converged || (
     std::isfinite(gradient_measure) && gradient_measure <= tol
@@ -524,8 +486,9 @@ List trust_region_cpp(
       );
       if (!std::isfinite(refined.value)) break;
       arma::vec refined_gradient = direction * refined.gradient;
-      double refined_measure = scaled_gradient_measure(
-        refined_gradient, candidate, refined.value, lower_vec, upper_vec
+      double refined_measure = vntrs::gradient_measure(
+        refined_gradient, candidate, refined.value, lower_vec, upper_vec,
+        relative_scale
       );
       double objective_change = direction * (value - refined.value);
       double value_slack = 10.0 * std::numeric_limits<double>::epsilon() *

@@ -32,9 +32,8 @@ The package implementation differs in some aspects from Bierlaire et al. (2009) 
 | Aspect | Bierlaire et al. (2009) | `vntrs` | Rationale |
 |:---|:---|:---|:---|
 | Local search | Unconstrained trust-region method | Optionally constrained trust-region method, using damped BFGS when no analytical Hessian is supplied | Allows for parameter bounds, improves numerical stability |
-| Convergence check | Based on absolute gradient norm | Based on relative gradient norm | Less dependence on parameter scales |
-| Previously visited optimum | Stops if the Euclidean distance to a visited optimum is at most $1$ | Stops based on a relative, component-wise comparison | Less dependence on parameter scales |
-| Armijo-like interruption | Stops when the objective improvement fails an Armijo-like test | Not used | Limited additional value |
+| Scaling | Uses absolute distance and gradient criteria | Uses relative criteria by default; `scale = "absolute"` applies unscaled criteria | Relative criteria reduce scale dependence |
+| Interruption | Uses Armijo-like improvement test | Not used | Limited value in addition to other interruption criteria |
 
 ## Installation
 

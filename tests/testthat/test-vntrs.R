@@ -50,7 +50,7 @@ two_optima <- function(x) {
 
 call_trust_region <- function(
     objfun, parinit, rinit = 1, rmax = 10, iterlim = 100,
-    minimize = TRUE, tol = 1e-6, eta = 0.1,
+    minimize = TRUE, tol = 1e-6, relative_scale = TRUE, eta = 0.1,
     lower = rep(-Inf, length(parinit)), upper = rep(Inf, length(parinit))
 ) {
   vntrs:::trust_region_cpp(
@@ -61,6 +61,7 @@ call_trust_region <- function(
     iterlim = as.integer(iterlim),
     minimize = minimize,
     tol = tol,
+    relative_scale = relative_scale,
     eta = eta,
     lower = as.numeric(lower),
     upper = as.numeric(upper)
@@ -80,10 +81,14 @@ call_vntrs_cpp <- function(
     beta = 0.05,
     iterlim = 5,
     tolerance = 1e-6,
+    known_optimum_radius = 0.1,
     inferior_tolerance = 1e-6,
     interruption_gradient_tolerance = 1e-3,
+    relative_scale = TRUE,
     has_time_limit = FALSE,
     time_limit = 0,
+    has_evaluation_limit = FALSE,
+    evaluation_limit = 0,
     lower = rep(-Inf, npar),
     upper = rep(Inf, npar),
     quiet = TRUE,
@@ -103,10 +108,14 @@ call_vntrs_cpp <- function(
     beta = beta,
     iterlim = as.integer(iterlim),
     tolerance = tolerance,
+    known_optimum_radius = known_optimum_radius,
     inferior_tolerance = inferior_tolerance,
     interruption_gradient_tolerance = interruption_gradient_tolerance,
+    relative_scale = relative_scale,
     has_time_limit = has_time_limit,
     time_limit = time_limit,
+    has_evaluation_limit = has_evaluation_limit,
+    evaluation_limit = as.integer(evaluation_limit),
     lower = as.numeric(lower),
     upper = as.numeric(upper),
     quiet = quiet,
@@ -128,6 +137,8 @@ valid_vntrs_args <- function() {
     beta = 0,
     iterlim = 1,
     identical_tolerance = 1e-6,
+    scale = "relative",
+    known_optimum_radius = 0.1,
     inferior_tolerance = 1e-6,
     interruption_gradient_tolerance = 1e-3,
     quiet = TRUE
@@ -137,6 +148,12 @@ valid_vntrs_args <- function() {
 expect_vntrs_error <- function(...) {
   expect_error(do.call(vntrs, utils::modifyList(valid_vntrs_args(), list(...))))
 }
+
+test_that("identical_tolerance defaults are comparable across scales", {
+  default <- formals(vntrs)$identical_tolerance
+  expect_equal(eval(default, envir = list(scale = "relative")), 1e-3)
+  expect_equal(eval(default, envir = list(scale = "absolute")), 1e-3)
+})
 
 test_that("vntrs respects parameter bounds", {
   set.seed(1)
@@ -264,6 +281,59 @@ test_that("vntrs handles missing optima and time limits", {
   )
 })
 
+test_that("evaluation_limit counts and limits calls to f", {
+  evaluations <- 0L
+  counted_quadratic <- function(x) {
+    evaluations <<- evaluations + 1L
+    list(value = x[1]^2, gradient = 2 * x[1], hessian = matrix(2))
+  }
+  expect_warning(
+    result <- vntrs(
+      f = counted_quadratic,
+      npar = 1,
+      init_runs = 1,
+      init_iterlim = 100,
+      neighborhoods = 1,
+      neighbors = 1,
+      iterlim = 100,
+      evaluation_limit = 5,
+      quiet = TRUE
+    ),
+    "evaluation_limit"
+  )
+  expect_equal(evaluations, 5L)
+  expect_s3_class(result, "data.frame")
+  expect_equal(result$value[1], 0, tolerance = 1e-12)
+
+  evaluations <- 0L
+  counted_value <- function(x) {
+    evaluations <<- evaluations + 1L
+    x[1]^2
+  }
+  warnings <- character()
+  result <- withCallingHandlers(
+    vntrs(
+      f = counted_value,
+      npar = 1,
+      init_runs = 1,
+      init_iterlim = 100,
+      neighborhoods = 1,
+      neighbors = 1,
+      iterlim = 100,
+      evaluation_limit = 5,
+      quiet = TRUE
+    ),
+    warning = function(condition) {
+      warnings <<- c(warnings, conditionMessage(condition))
+      invokeRestart("muffleWarning")
+    }
+  )
+  expect_true(any(grepl("evaluation_limit", warnings, fixed = TRUE)))
+  expect_true(any(grepl("No optima found", warnings, fixed = TRUE)))
+  expect_equal(evaluations, 5L)
+  expect_null(result)
+})
+
 test_that("vntrs can retain all local optima", {
   set.seed(1)
   base_args <- list(
@@ -361,11 +431,16 @@ test_that("vntrs validates public arguments", {
   expect_vntrs_error(beta = -1)
   expect_vntrs_error(iterlim = 0)
   expect_vntrs_error(identical_tolerance = -1)
+  expect_vntrs_error(known_optimum_radius = -1)
   expect_vntrs_error(inferior_tolerance = -1)
   expect_vntrs_error(interruption_gradient_tolerance = -1)
   expect_vntrs_error(gradient_tolerance = 0)
   expect_vntrs_error(time_limit = -1)
   expect_vntrs_error(time_limit = 0)
+  expect_vntrs_error(evaluation_limit = -1)
+  expect_vntrs_error(evaluation_limit = 0)
+  expect_vntrs_error(evaluation_limit = 1.5)
+  expect_vntrs_error(evaluation_limit = .Machine$integer.max + 1)
   expect_vntrs_error(lower = c(0, 0))
   expect_vntrs_error(lower = NA_real_)
   expect_vntrs_error(upper = c(0, 0))
