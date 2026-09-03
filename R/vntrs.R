@@ -136,16 +136,14 @@
 #' @param inferior_tolerance \[`numeric(1)`\]\cr
 #' Controls when the algorithm gives up early on a local search that is unlikely
 #' to improve the best known solution. It compares objective values in absolute
-#' units and is used only after at least one optimum has been found. For
-#' minimization, the search may then be stopped in either of the following
-#' situations:
+#' units and is used only after at least one optimum has been found. The search
+#' is stopped in either of the following situations:
 #' \itemize{
 #'   \item Its value is worse than the best known value by more than
 #'   \code{inferior_tolerance}.
 #'   \item It is within Euclidean distance \code{1} of a known optimum but does
 #'   not improve the best known value by more than \code{inferior_tolerance}.
 #' }
-#' For maximization, "worse" and "improve" have the opposite direction.
 #'
 #' Setting \code{collect_all = TRUE} disables both objective-value rules above,
 #' allowing searches toward inferior local optima to continue. Searches that
